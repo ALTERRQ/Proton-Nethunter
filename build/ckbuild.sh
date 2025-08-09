@@ -117,6 +117,7 @@ CODENAME="exynos2100"
 ## Parse arguments
 # Default values
 DO_KSU=0
+DO_NH=0
 DO_CLEAN=0
 DO_MENUCONFIG=0
 IS_RELEASE=0
@@ -165,6 +166,10 @@ while [[ "$1" == -* ]]; do
             r)
                 echo "INFO: config regeneration mode"
                 DO_REGEN=1
+                ;;
+            n)
+                echo "INFO: Build with Nethunter support"
+                DO_NH=1
                 ;;
             *)
                 echo "ERROR: Unknown flag '$FLAG'"
@@ -230,11 +235,16 @@ fi
 LINUX_VER=$(make kernelversion 2>/dev/null)
 
 FK_TYPE=""
-if [ $DO_KSU -eq 1 ]; then
+if [ $DO_KSU -eq 1 && $DO_NH -eq 1]; then
+    FK_TYPE="KSU+Nethunter"
+elif [ $DO_KSU -eq 1 ]; then
     FK_TYPE="KSU"
+elif [ $DO_NH -eq 1 ]; then
+    FK_TYPE="Nethunter"
 else
     FK_TYPE="Non-root"
 fi
+
 if [[ "$BUILD_TYPE_BALANCED" == "1" ]]; then
     FK_TYPE="$BUILD_TYPE_STR-$FK_TYPE"
 elif [[ "$BUILD_TYPE_BATTERY" == "1" ]]; then
