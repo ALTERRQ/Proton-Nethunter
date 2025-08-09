@@ -501,8 +501,6 @@ post_build() {
         echo -e "\nINFO: Kernel compiled succesfully!...\n"
     else
         echo -e "\nERROR: Kernel files not found! Compilation failed?"
-        echo -e "\nINFO: Uploading log to bashupload.com\n"
-        curl -T log.txt bashupload.com
         exit 1
     fi
 
@@ -664,7 +662,6 @@ fi
 ## Run build
 prep_build
 build
+upload
 post_build
 clean_tmp
-
-upload
