@@ -104,7 +104,7 @@ DO_TAR="1"
 DO_ZIP="1"
 
 # Upload build log
-BUILD_LOG=1
+BUILD_LOG=0
 
 # Pick aosp, proton or lolz
 CLANG_TYPE=aosp
