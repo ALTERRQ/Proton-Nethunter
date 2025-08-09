@@ -398,7 +398,7 @@ build() {
     rm -f $OUT_KERNEL
     rm -rf "$MOD_OUTDIR"
 
-    make -j$(nproc --all) O=out CC="clang" CROSS_COMPILE="$CCARM64_PREFIX" $DEFCONFIG $([[ "$DO_KSU" == "1" ]] && echo "ksu.config") 2>&1 | tee log.txt
+    make -j$(nproc --all) O=out CC="clang" CROSS_COMPILE="$CCARM64_PREFIX" $DEFCONFIG $([[ "$DO_KSU" == "1" ]] && echo "ksu.config") $([[ "$DO_NH" == "1" ]] && echo "nethunter.config") 2>&1 | tee log.txt
 
     if [ $DO_MENUCONFIG = "1" ]; then
         make O=out menuconfig 2>&1 >> log.txt
