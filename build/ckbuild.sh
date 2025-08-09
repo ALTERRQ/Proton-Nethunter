@@ -235,23 +235,21 @@ fi
 LINUX_VER=$(make kernelversion 2>/dev/null)
 
 FK_TYPE=""
-if [ $DO_KSU -eq 1 && $DO_NH -eq 1]; then
-    FK_TYPE="KSU+Nethunter"
+if [ $DO_KSU -eq 1 -a $DO_NH -eq 1 ]; then
+    FK_TYPE="KSU-Nethunter"
+    
 elif [ $DO_KSU -eq 1 ]; then
     FK_TYPE="KSU"
+    
 elif [ $DO_NH -eq 1 ]; then
     FK_TYPE="Nethunter"
+    
 else
     FK_TYPE="Non-root"
+    
 fi
 
-if [[ "$BUILD_TYPE_BALANCED" == "1" ]]; then
-    FK_TYPE="$BUILD_TYPE_STR-$FK_TYPE"
-elif [[ "$BUILD_TYPE_BATTERY" == "1" ]]; then
-    FK_TYPE="$BUILD_TYPE_STR-$FK_TYPE"
-elif [[ "$BUILD_TYPE_OC" == "1" ]]; then
-    FK_TYPE="$BUILD_TYPE_STR-$FK_TYPE"
-fi
+FK_TYPE="$BUILD_TYPE_STR-$FK_TYPE"
 
 ZIP_PATH="$KDIR/build/ProtonPlus-$K_VER-$FK_TYPE-$CODENAME-$DATE.zip"
 TAR_PATH="$KDIR/build/ProtonPlus-$K_VER-$FK_TYPE-$CODENAME-$DATE.tar"
