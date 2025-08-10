@@ -16,7 +16,6 @@ LZ_REPO="https://gitlab.com/Jprimero15/lolz_clang.git"
 DEFAULT_DEFCONFIG="proton_exynos2100-r9sxxx_defconfig"
 KERNEL_URL="https://github.com/ProtonKernel/Proton"
 AK3_URL="https://github.com/ProtonKernel/AnyKernel3"
-AK3_TEST=0
 SECONDS=0 # builtin bash timer
 DATE="$(date '+%Y%m%d-%H%M')"
 BUILD_HOST="$USER@$(hostname)"
@@ -466,13 +465,13 @@ packing() {
     # Make an AnyKernel3-based zip
     if [ $DO_ZIP = 1 ]; then
         if [ -d $AK3_DIR ]; then
-            AK3_TEST=1
-            echo -e "\nINFO: AK3_TEST flag set because local AnyKernel3 dir was found"
+            echo -e "\nINFO: Local AnyKernel3 dir was found"
         else
             if ! git clone -q -b $AK3_BRANCH --depth=1 $AK3_URL $AK3_DIR; then
                 echo -e "\nERROR: Failed to clone AnyKernel3!"
                 exit 1
             fi
+            echo -e "\nINFO: Cloning AnyKernel3"
         fi
         echo -e "\nINFO: Building zip..."
         cd "$AK3_DIR"
@@ -481,11 +480,6 @@ packing() {
         zip -r9 -q "$ZIP_PATH" * -x .git .github README.md
         cd "$KDIR"
         echo -e "INFO: Done! \nINFO: Output: $ZIP_PATH\n"
-        if [ $AK3_TEST = 1 ]; then
-            echo -e "\nINFO: Skipping deletion of AnyKernel3 dir because test flag is set"
-        else
-            rm -rf $AK3_DIR
-        fi
     fi
 
     # Build tar
