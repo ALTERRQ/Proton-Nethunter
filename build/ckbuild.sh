@@ -6,6 +6,14 @@
 # Copyright (C) 2022-2024 Flopster101 (rewrite)
 
 ## Vars
+
+# Colors
+RED="\e[1;31m"
+GREEN="\e[1;32m"
+BLUE="\e[1;34m"
+ORANGE="\e[1;33m"
+ENDCOLOR="\e[0m"
+
 # Toolchains
 AOSP_REPO="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+/refs/heads/master"
 AOSP_ARCHIVE="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/master"
@@ -104,13 +112,6 @@ K_VER="v5.2.1"
 USE_CCACHE=1
 DO_TAR="1"
 DO_ZIP="1"
-
-# Colors
-RED="\e[1;31m"
-GREEN="\e[1;32m"
-BLUE="\e[1;34m"
-ORANGE="\e[1;33m"
-ENDCOLOR="\e[0m"
 
 # Pick aosp, proton or lolz
 CLANG_TYPE=aosp
