@@ -29,11 +29,13 @@ else
 fi
 if [ -z "$WP" ]; then
     echo -e "$RED\nERROR: Environment not Gitpod! Please set the WP env var...\n$ENDCOLOR"
+    upload
     exit 1
 fi
 
 if [ ! -d drivers ]; then
     echo -e "$RED\nERROR: Please exec from top-level kernel tree\n$ENDCOLOR"
+    upload
     exit 1
 fi
 
@@ -91,6 +93,7 @@ fi
 
 if ! command -v dtc &>/dev/null; then
     echo -e "$RED\nERROR: 'dtc' (Device Tree Compiler) is not installed. Aborting...\n$ENDCOLOR"
+    upload
     exit 1
 fi
 
@@ -179,6 +182,7 @@ while [[ "$1" == -* ]]; do
                 ;;
             *)
                 echo -e "$RED\nERROR: Unknown flag '$FLAG'$ENDCOLOR"
+                upload
                 exit 1
                 ;;
         esac
@@ -281,6 +285,7 @@ get_toolchain() {
             echo -e "$BLUE\nINFO: AOSP Clang not found! Cloning to $AC_DIR..."
             if ! curl -LSsO "$AOSP_ARCHIVE/$CURRENT_CLANG.tar.gz"; then
                 echo -e "$RED\nERROR: Cloning failed! Aborting...$ENDCOLOR"
+                upload
                 exit 1
             fi
             mkdir -p $AC_DIR && tar -xf ./*.tar.gz -C $AC_DIR && rm ./*.tar.gz && rm -rf clang
@@ -296,6 +301,7 @@ get_toolchain() {
             echo -e "$BLUE\nINFO: Proton Clang not found! Cloning to $PC_DIR...$ENDCOLOR"
             if ! git clone -q --depth=1 $PC_REPO $PC_DIR; then
                 echo -e "$RED\nERROR: Cloning failed! Aborting...$ENDCOLOR"
+                upload
                 exit 1
             fi
         fi
@@ -307,6 +313,7 @@ get_toolchain() {
             echo -e "$BLUE\nINFO: Lolz Clang not found! Cloning to $LZ_DIR...$ENDCOLOR"
             if ! git clone -q --depth=1 $LZ_REPO $LZ_DIR; then
                 echo -e "$RED\nERROR: Cloning failed! Aborting...$ENDCOLOR"
+                upload
                 exit 1
             fi
         fi
@@ -383,8 +390,6 @@ prep_build() {
 }
 
 build() {
-    # Delete log.txt at the start
-    rm -f log.txt
 
     # Not that necessary anymore, but still export it just in case.
     export PLATFORM_VERSION=11
@@ -403,15 +408,16 @@ build() {
     rm -f $OUT_KERNEL
     rm -rf "$MOD_OUTDIR"
 
-    make -j$(nproc --all) O=out CC="clang" CROSS_COMPILE="$CCARM64_PREFIX" $DEFCONFIG $([[ "$DO_KSU" == "1" ]] && echo -e "ksu.config") $([[ "$DO_NH" == "1" ]] && echo -e "nethunter.config") $([[ "$DO_NH" == "0" && "$DO_KSU" == "1" ]] && echo -e "susfs.config") 2>&1 | tee log.txt
+    make -j$(nproc --all) O=out CC="clang" CROSS_COMPILE="$CCARM64_PREFIX" $DEFCONFIG $([[ "$DO_KSU" == "1" ]] && echo -e "ksu.config") $([[ "$DO_NH" == "1" ]] && echo -e "nethunter.config") $([[ "$DO_NH" == "0" && "$DO_KSU" == "1" ]] && echo -e "susfs.config")
 
     if [ $DO_MENUCONFIG = "1" ]; then
-        make O=out menuconfig 2>&1 >> log.txt
+        make O=out menuconfig
     fi
 
     if [[ "$DO_REGEN" = "1" ]]; then
         if [[ "$DO_KSU" = "1" ]]; then
             echo -e "$RED\nERROR: Can't regenerate with KSU argument$ENDCOLOR"
+            upload
             exit 1
         fi
         cp -f out/.config arch/arm64/configs/$DEFCONFIG
@@ -446,13 +452,13 @@ build() {
     ## Start the build
     echo -e "$BLUE\nINFO: Starting compilation...\n$ENDCOLOR"
 
-    make -j$(nproc --all) O=out CC="clang" CROSS_COMPILE="$CCARM64_PREFIX" dtbs 2>&1 | tee -a log.txt
+    make -j$(nproc --all) O=out CC="clang" CROSS_COMPILE="$CCARM64_PREFIX" dtbs
     if [ $USE_CCACHE = "1" ]; then
-        make -j$(nproc --all) O=out CC="ccache clang" CROSS_COMPILE="$CCARM64_PREFIX" 2>&1 | tee -a log.txt
+        make -j$(nproc --all) O=out CC="ccache clang" CROSS_COMPILE="$CCARM64_PREFIX"
     else
-        make -j$(nproc --all) O=out CC="clang" CROSS_COMPILE="$CCARM64_PREFIX" 2>&1 | tee -a log.txt
+        make -j$(nproc --all) O=out CC="clang" CROSS_COMPILE="$CCARM64_PREFIX"
     fi
-    make -j$(nproc --all) O=out CC="clang" CROSS_COMPILE="$CCARM64_PREFIX" INSTALL_MOD_STRIP="--strip-debug --keep-section=.ARM.attributes" INSTALL_MOD_PATH="$MOD_OUTDIR" modules_install 2>&1 | tee -a log.txt
+    make -j$(nproc --all) O=out CC="clang" CROSS_COMPILE="$CCARM64_PREFIX" INSTALL_MOD_STRIP="--strip-debug --keep-section=.ARM.attributes" INSTALL_MOD_PATH="$MOD_OUTDIR" modules_install
 }
 
 packing() {
@@ -476,6 +482,7 @@ packing() {
         else
             if ! git clone -q -b $AK3_BRANCH --depth=1 $AK3_URL $AK3_DIR; then
                 echo -e "$RED\nERROR: Failed to clone AnyKernel3!$ENDCOLOR"
+                upload
                 exit 1
             fi
             echo -e "$BLUE\nINFO: Cloning AnyKernel3$ENDCOLOR"
@@ -511,6 +518,7 @@ post_build() {
         echo -e "$GREEN\nINFO: Kernel compiled succesfully!...\n $ENDCOLOR"
     else
         echo -e "$RED\nERROR: Kernel files not found! Compilation failed?$ENDCOLOR"
+        upload
         exit 1
     fi
 
@@ -538,6 +546,7 @@ post_build() {
     dtc -I dts -O dtb -o "$DTB_OUT" "$DTS_SRC" >/dev/null 2>&1
     if [ $? -ne 0 ]; then
         echo -e "$RED nERROR: dtc failed to compile $DTS_SRC\n$ENDCOLOR"
+        upload
         exit 1
     fi
 
@@ -546,6 +555,7 @@ post_build() {
     # Handle compiled modules
     if ! find "$MOD_OUTDIR/lib/modules" -mindepth 1 -type d | read; then
         echo -e "$RED\nERROR: Unknown error!\n $ENDCOLOR"
+        upload
         exit 1
     fi
 
@@ -563,6 +573,7 @@ post_build() {
 
     if [ "$missing_modules" != "" ]; then
             echo -e "$RED ERROR: the following modules were not found: $missing_modules $ENDCOLOR"
+        upload
         exit 1
     fi
 
@@ -571,6 +582,7 @@ post_build() {
 		dupes=$(sort "$IN_VBOOT/lib/modules/modules.load" | uniq -d | xargs)
 		if [ -n "$dupes" ]; then
 			echo -e "$RED\nERROR: Duplicate module entries found in modules.load: $dupes\n$ENDCOLOR"
+			upload
 			exit 1
 		fi
 	fi
@@ -602,7 +614,11 @@ post_build() {
 
     # Build the images
     echo -e "$BLUE\nINFO: Building dtb image..."
-    python "$MKDTBOIMG" create "$OUT_DTBIMAGE" --custom0=0x00000000 --custom1=0xff000000 --version=0 --page_size=2048 "$TMPDIR/exynos2100.dtb" || exit 1
+    python "$MKDTBOIMG" create "$OUT_DTBIMAGE" --custom0=0x00000000 --custom1=0xff000000 --version=0 --page_size=2048 "$TMPDIR/exynos2100.dtb"
+    if [ $? -ne 0 ]; then
+    upload
+    exit 1
+fi
 
     echo -e "$BLUE\nINFO: Building boot image...$ENDCOLOR"
     $MKBOOTIMG --header_version 3 \
@@ -610,7 +626,11 @@ post_build() {
         --output "$OUT_BOOTIMG" \
         --ramdisk "$PREBUILT_RAMDISK" \
         --os_version 11.0.0 \
-        --os_patch_level "$MONTH" || exit 1
+        --os_patch_level "$MONTH"
+        if [ $? -ne 0 ]; then
+    upload
+    exit 1
+fi
     echo -e "$GREEN INFO: Done!$ENDCOLOR"
 
     echo -e "$BLUE\nINFO: Building vendor_boot image...$ENDCOLOR"
@@ -624,7 +644,11 @@ post_build() {
         --dtb "$OUT_DTBIMAGE" \
         --vendor_ramdisk "$(pwd)/ramdisk.cpio.gz" \
         --os_version 11.0.0 \
-        --os_patch_level "$MONTH" || exit 1
+        --os_patch_level "$MONTH"
+        if [ $? -ne 0 ]; then
+    upload
+    exit 1
+fi
 
     cd "$KDIR"
 
@@ -672,6 +696,6 @@ fi
 ## Run build
 prep_build
 build
-upload
 post_build
 clean_tmp
+upload
