@@ -112,9 +112,6 @@ BLUE="\e[1;34m"
 ORANGE="\e[1;33m"
 ENDCOLOR="\e[0m"
 
-# Upload build log
-BUILD_LOG=0
-
 # Pick aosp, proton or lolz
 CLANG_TYPE=aosp
 
@@ -134,6 +131,7 @@ DO_TG=0
 DO_OSHI=0
 DO_FLTO=0
 DO_REGEN=0
+UPLOAD_LOG=0
 DEFCONFIG=$DEFAULT_DEFCONFIG
 BUILD_VARIANT="default"
 
@@ -179,6 +177,10 @@ while [[ "$1" == -* ]]; do
             n)
                 echo -e "$BLUE\nINFO: Build with Nethunter support $ENDCOLOR"
                 DO_NH=1
+                ;;
+            u)
+                echo -e "$BLUE\nINFO: Log uploading is enabled $ENDCOLOR"
+                UPLOAD_LOG=1
                 ;;
             *)
                 echo -e "$RED\nERROR: Unknown flag '$FLAG'$ENDCOLOR"
@@ -669,7 +671,7 @@ upload() {
             tgs $ZIP_PATH
             echo -e "$GREEN Done!$ENDCOLOR"
     fi
-    if [[ "${BUILD_LOG}" = "1" ]]; then
+    if [[ "${UPLOAD_LOG}" = "1" ]]; then
         echo -e "$BLUE\nINFO: Uploading log to bashupload.com\n$ENDCOLOR"
         curl -T log.txt bashupload.com
     fi
