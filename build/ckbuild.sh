@@ -389,7 +389,7 @@ prep_build() {
 
     # Show compiler information
     echo -e "$BLUE\nCompiler information:$ENDCOLOR"
-    echo -e "$BLUE\nINFO: $KBUILD_COMPILER_STRING\n$ENDCOLOR"
+    echo -e "$BLUE INFO: $KBUILD_COMPILER_STRING\n$ENDCOLOR"
 }
 
 build() {
@@ -630,6 +630,7 @@ post_build() {
     upload
     exit 1
 fi
+    echo -e "$GREEN INFO: Done!$ENDCOLOR"
 
     echo -e "$BLUE\nINFO: Building boot image...$ENDCOLOR"
     $MKBOOTIMG --header_version 3 \
