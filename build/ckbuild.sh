@@ -414,7 +414,15 @@ build() {
     make -j$(nproc --all) O=out CC="clang" CROSS_COMPILE="$CCARM64_PREFIX" $DEFCONFIG $([[ "$DO_KSU" == "1" ]] && echo -e "ksu.config") $([[ "$DO_NH" == "1" ]] && echo -e "nethunter.config") $([[ "$DO_NH" == "0" && "$DO_KSU" == "1" ]] && echo -e "susfs.config")
 
     if [ $DO_MENUCONFIG = "1" ]; then
-        make O=out menuconfig
+        echo -e "$BLUE\nINFO: Menuconfig has been called...$ENDCOLOR"
+        make O=out menuconfig < /dev/tty > /dev/tty 2> /dev/tty
+        if [ $? -ne 0 ]; then
+            echo -e "$RED\nERROR: Menuconfig failed!$ENDCOLOR"
+            upload
+            exit 1
+        else
+            echo -e "$BLUE\nINFO: Menuconfig finished$ENDCOLOR"
+        fi
     fi
 
     if [[ "$DO_REGEN" = "1" ]]; then
