@@ -682,7 +682,7 @@ upload() {
             echo -e "$GREEN Done!$ENDCOLOR"
     fi
     if [[ "${UPLOAD_LOG}" = "1" ]]; then
-        echo -e "$BLUE\nINFO: Uploading log to bashupload.com\n$ENDCOLOR"
+        echo -e "$BLUE\nINFO: Uploading log to bashupload.com$ENDCOLOR"
         curl -T log.txt bashupload.com
     fi
     # Delete any leftover zip files
@@ -695,7 +695,7 @@ clean() {
 }
 
 clean_tmp() {
-    echo -e "$BLUE INFO: Cleaning after build...$ENDCOLOR"
+    echo -e "$BLUE/nINFO: Cleaning after build...$ENDCOLOR"
     rm -rf "$TMPDIR"
     rm -rf "$MOD_OUTDIR"
     rm -f "${OUT_VENDORBOOTIMG}" "${OUT_BOOTIMG}"
