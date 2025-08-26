@@ -112,11 +112,23 @@ DTS_OC="$KDIR/arch/arm64/boot/dts/exynos/exynos2100_oc.dts"
 
 # Dependencies
 UB_DEPLIST="lz4 brotli flex bc cpio kmod ccache zip binutils-aarch64-linux-gnu device-tree-compiler curl bison libssl-dev python-is-python3"
-if grep -q -E "Ubuntu|Debian" /etc/os-release; then
+if [ ! -f ".flag" ]; then
+  if grep -q -E "Ubuntu|Debian" /etc/os-release; then
     sudo apt install $UB_DEPLIST -y
+      if [ $? -ne 0 ]; then
+        echo -e "$RED\nERROR: Failed to install dependencies\n$ENDCOLOR"
+        upload
+        exit 1
+      else
+        touch ".flag"
+        echo -e "$GREEN\nINFO: Succesfully installed dependencies!$ENDCOLOR"
+      fi
+  else
+      echo -e "$BLUE\nINFO: Your distro is not Ubuntu or Debian, skipping dependencies installation...$ENDCOLOR"
+      echo -e "$BLUE INFO: Make sure you have these dependencies installed before proceeding: $UB_DEPLIST $ENDCOLOR"
+  fi
 else
-    echo -e "$BLUE\nINFO: Your distro is not Ubuntu, skipping dependencies installation...$ENDCOLOR"
-    echo -e "$BLUE INFO: Make sure you have these dependencies installed before proceeding: $UB_DEPLIST $ENDCOLOR"
+  echo -e "$BLUE\nINFO: Dependencies should be installed$ENDCOLOR"
 fi
 
 if ! command -v dtc &>/dev/null; then
@@ -242,7 +254,7 @@ case "$BUILD_VARIANT" in
         BUILD_TYPE_OC=1
         ;;
     *)
-        echo -e "$BLUE INFO: Unknown build variant: $BUILD_VARIANT, defaulting to 'default'$ENDCOLOR"
+        echo -e "$BLUE\nINFO: Unknown build variant: $BUILD_VARIANT, defaulting to 'default'$ENDCOLOR"
         BUILD_TYPE_DEFAULT=1
         ;;
 esac
@@ -576,7 +588,7 @@ post_build() {
     echo -e "$BLUE\nINFO: Compiling DTS: $DTS_SRC -> $DTB_OUT\n$ENDCOLOR"
     dtc -I dts -O dtb -o "$DTB_OUT" "$DTS_SRC" >/dev/null 2>&1
     if [ $? -ne 0 ]; then
-        echo -e "$RED nERROR: dtc failed to compile $DTS_SRC\n$ENDCOLOR"
+        echo -e "$RED ERROR: dtc failed to compile $DTS_SRC\n$ENDCOLOR"
         upload
         exit 1
     fi
@@ -603,7 +615,7 @@ post_build() {
     done
 
     if [ "$missing_modules" != "" ]; then
-            echo -e "$RED ERROR: the following modules were not found: $missing_modules $ENDCOLOR"
+            echo -e "$RED\nERROR: the following modules were not found: $missing_modules $ENDCOLOR"
         upload
         exit 1
     fi
@@ -647,6 +659,7 @@ post_build() {
     echo -e "$BLUE\nINFO: Building dtb image..."
     python "$MKDTBOIMG" create "$OUT_DTBIMAGE" --custom0=0x00000000 --custom1=0xff000000 --version=0 --page_size=2048 "$TMPDIR/exynos2100.dtb"
     if [ $? -ne 0 ]; then
+    echo -e "$RED\nERROR: Building dtb image failed\n$ENDCOLOR"
     upload
     exit 1
 fi
