@@ -28,6 +28,26 @@ SECONDS=0 # builtin bash timer
 DATE="$(date '+%Y%m%d-%H%M')"
 BUILD_HOST="$USER@$(hostname)"
 
+upload() {
+    cd $KDIR
+    if [[ "${DO_OSHI}" = "1" ]]; then
+    echo -e "$BLUE\nINFO: Uploading to bashupload.com\n$ENDCOLOR"
+    curl -T $ZIP_PATH bashupload.com; echo -e
+    fi
+
+    if [[ "${DO_TG}" = "1" ]]; then
+            echo -e "$BLUE\nINFO: Uploading to Telegram\n$ENDCOLOR"
+            tgs $ZIP_PATH
+            echo -e "$GREEN Done!$ENDCOLOR"
+    fi
+    if [[ "${UPLOAD_LOG}" = "1" ]]; then
+        echo -e "$BLUE\nINFO: Uploading log to bashupload.com$ENDCOLOR"
+        curl -T log.txt bashupload.com
+    fi
+    # Delete any leftover zip files
+    #rm -f $KDIR/build/*zip
+}
+
 # Workspace
 if [ -d /workspace ]; then
     WP="/workspace"
@@ -667,26 +687,6 @@ fi
     echo -e "$GREEN INFO: Done!$ENDCOLOR"
 
     packing
-}
-
-upload() {
-    cd $KDIR
-    if [[ "${DO_OSHI}" = "1" ]]; then
-    echo -e "$BLUE\nINFO: Uploading to bashupload.com\n$ENDCOLOR"
-    curl -T $ZIP_PATH bashupload.com; echo -e
-    fi
-
-    if [[ "${DO_TG}" = "1" ]]; then
-            echo -e "$BLUE\nINFO: Uploading to Telegram\n$ENDCOLOR"
-            tgs $ZIP_PATH
-            echo -e "$GREEN Done!$ENDCOLOR"
-    fi
-    if [[ "${UPLOAD_LOG}" = "1" ]]; then
-        echo -e "$BLUE\nINFO: Uploading log to bashupload.com$ENDCOLOR"
-        curl -T log.txt bashupload.com
-    fi
-    # Delete any leftover zip files
-    #rm -f $KDIR/build/*zip
 }
 
 clean() {
