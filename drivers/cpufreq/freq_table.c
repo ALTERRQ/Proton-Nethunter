@@ -43,8 +43,13 @@ int cpufreq_frequency_table_cpuinfo(struct cpufreq_policy *policy,
 		if (!cpufreq_boost_enabled()
 		    && (pos->flags & CPUFREQ_BOOST_FREQ))
 			continue;
+		}
+		if (!cpufreq_boost_enabled()
+		    && table[i].driver_data == CPUFREQ_BOOST_FREQ)
+			continue;
 
-		pr_debug("table entry %u: %u kHz\n", (int)(pos - table), freq);
+		pr_debug("table entry %u: %u kHz, %u driver_data\n",
+					i, freq, table[i].driver_data);
 		if (freq < min_freq)
 			min_freq = freq;
 		if (freq > max_freq)
@@ -247,8 +252,21 @@ static ssize_t show_available_freqs(struct cpufreq_policy *policy, char *buf,
 		 */
 		if (show_boost ^ (pos->flags & CPUFREQ_BOOST_FREQ))
 			continue;
+		/*
+		 * show_boost = true and driver_data = BOOST freq
+		 * display BOOST freqs
+		 *
+		 * show_boost = false and driver_data = BOOST freq
+		 * show_boost = true and driver_data != BOOST freq
+		 * continue - do not display anything
+		 *
+		 * show_boost = false and driver_data != BOOST freq
+		 * display NON BOOST freqs
+		 */
+		if (show_boost ^ (table[i].driver_data == CPUFREQ_BOOST_FREQ))
+			continue;
 
-		count += sprintf(&buf[count], "%d ", pos->frequency);
+		count += sprintf(&buf[count], "%d ", table[i].frequency);
 	}
 	count += sprintf(&buf[count], "\n");
 
@@ -286,6 +304,9 @@ EXPORT_SYMBOL_GPL(cpufreq_freq_attr_scaling_boost_freqs);
 
 struct freq_attr *cpufreq_generic_attr[] = {
 	&cpufreq_freq_attr_scaling_available_freqs,
+#ifdef CONFIG_CPU_FREQ_BOOST_SW
+	&cpufreq_freq_attr_scaling_boost_freqs,
+#endif
 	NULL,
 };
 EXPORT_SYMBOL_GPL(cpufreq_generic_attr);
