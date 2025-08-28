@@ -232,9 +232,6 @@ static void *m_start(struct seq_file *m, loff_t *ppos)
 		return ERR_PTR(-EINTR);
 	}
 
-	sched_migrate_to_cpumask_start(to_cpumask(&priv->old_cpus_allowed),
-				       cpu_lp_mask);
-
 	hold_task_mempolicy(priv);
 	priv->tail_vma = get_gate_vma(mm);
 
@@ -279,16 +276,12 @@ static void m_stop(struct seq_file *m, void *v)
 {
 	struct proc_maps_private *priv = m->private;
 
-	if (!priv->task)
-		return;
-
-	release_task_mempolicy(priv);
-	mmap_read_unlock(mm);
-	mmput(mm);
-	sched_migrate_to_cpumask_end(to_cpumask(&priv->old_cpus_allowed),
-				     cpu_lp_mask);
-	put_task_struct(priv->task);
-	priv->task = NULL;
+	if (!IS_ERR_OR_NULL(v))
+		vma_stop(priv);
+	if (priv->task) {
+		put_task_struct(priv->task);
+		priv->task = NULL;
+	}
 }
 
 static int proc_maps_open(struct inode *inode, struct file *file,

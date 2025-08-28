@@ -348,15 +348,21 @@ struct cpufreq_driver {
 	/* optional */
 	int		(*bios_limit)(int cpu, unsigned int *limit);
 
-	int	(*exit)		(struct cpufreq_policy *policy);
-	int	(*suspend)	(struct cpufreq_policy *policy);
-	int	(*resume)	(struct cpufreq_policy *policy);
-	struct freq_attr	**attr;
+	int		(*online)(struct cpufreq_policy *policy);
+	int		(*offline)(struct cpufreq_policy *policy);
+	int		(*exit)(struct cpufreq_policy *policy);
+	void		(*stop_cpu)(struct cpufreq_policy *policy);
+	int		(*suspend)(struct cpufreq_policy *policy);
+	int		(*resume)(struct cpufreq_policy *policy);
+
+	/* Will be called after the driver is fully initialized */
+	void		(*ready)(struct cpufreq_policy *policy);
+
+	struct freq_attr **attr;
 
 	/* platform specific boost support code */
-	bool                    boost_supported;
-	bool                    boost_enabled;
-	int     (*set_boost)    (int state);
+	bool		boost_enabled;
+	int		(*set_boost)(int state);
 };
 
 /* flags */
@@ -604,9 +610,11 @@ struct governor_attr {
  *                     FREQUENCY TABLE HELPERS                       *
  *********************************************************************/
 
-#define CPUFREQ_ENTRY_INVALID ~0
-#define CPUFREQ_TABLE_END     ~1
-#define CPUFREQ_BOOST_FREQ    ~2
+/* Special Values of .frequency field */
+#define CPUFREQ_ENTRY_INVALID	~0u
+#define CPUFREQ_TABLE_END	~1u
+/* Special Values of .flags field */
+#define CPUFREQ_BOOST_FREQ	(1 << 0)
 
 struct cpufreq_frequency_table {
 	unsigned int	flags;
@@ -701,24 +709,9 @@ ssize_t cpufreq_show_cpus(const struct cpumask *mask, char *buf);
 
 #ifdef CONFIG_CPU_FREQ
 int cpufreq_boost_trigger_state(int state);
-int cpufreq_boost_supported(void);
 int cpufreq_boost_enabled(void);
-#else
-static inline int cpufreq_boost_trigger_state(int state)
-{
-	return 0;
-}
-static inline int cpufreq_boost_supported(void)
-{
-	return 0;
-}
-static inline int cpufreq_boost_enabled(void)
-{
-	return 0;
-}
-#endif
-/* the following funtion is for cpufreq core use only */
-struct cpufreq_frequency_table *cpufreq_frequency_get_table(unsigned int cpu);
+int cpufreq_enable_boost_support(void);
+bool policy_has_boost_freq(struct cpufreq_policy *policy);
 
 /* Find lowest freq at or above target in a table in ascending order */
 static inline int cpufreq_table_find_index_al(struct cpufreq_policy *policy,
