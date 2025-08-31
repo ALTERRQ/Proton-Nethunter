@@ -282,7 +282,6 @@ LINUX_VER=$(make kernelversion 2>/dev/null)
 FK_TYPE=""
 if [ $DO_KSU -eq 1 -a $DO_NH -eq 1 ]; then
     FK_TYPE="KSU-Nethunter"
-    echo -e "$BLUE\nINFO: KSU-Nethunter disables SUSFS support$ENDCOLOR"
     
 elif [ $DO_KSU -eq 1 ]; then
     FK_TYPE="KSU"
@@ -443,7 +442,7 @@ build() {
     rm -f $OUT_KERNEL
     rm -rf "$MOD_OUTDIR"
 
-    make -j$(nproc --all) O=out CC="clang" CROSS_COMPILE="$CCARM64_PREFIX" $DEFCONFIG $([[ "$DO_KSU" == "1" ]] && echo -e "ksu.config") $([[ "$DO_NH" == "1" ]] && echo -e "nethunter.config") $([[ "$DO_NH" == "0" && "$DO_KSU" == "1" ]] && echo -e "susfs.config")
+    make -j$(nproc --all) O=out CC="clang" CROSS_COMPILE="$CCARM64_PREFIX" $DEFCONFIG $([[ "$DO_KSU" == "1" ]] && echo -e "ksu.config") $([[ "$DO_NH" == "1" ]] && echo -e "nethunter.config")
 
     if [ $DO_MENUCONFIG = "1" ]; then
         echo -e "$BLUE\nINFO: Menuconfig has been called...$ENDCOLOR"
