@@ -1,32 +1,47 @@
-name: "Build"
+name: Kernel Build CI
 
 on:
   push:
-    branches: ["proton-new"]
+    branches:
+      - proton
+  pull_request:
+    branches:
+      - proton
 
 jobs:
-  check_the_secret:
-    runs-on: ubuntu-latest
+  build-kernel:
+    runs-on: ubuntu-24.04
+
     steps:
-         - run: echo ${{vars.CHAT_ID}}
+      - name: Checkout main repository
+        uses: actions/checkout@v4
 
-  building:
-    runs-on: ubuntu-latest
-    steps:
-         - uses: actions/checkout@v4
-    
-         - run: export WP="$(realpath $PWD/../)"; bash build/ckbuild_actions.sh -tkR
-    
-         - name: Upload
-           uses: actions/upload-artifact@v4
-           with:
-            name: $ZIP_PATH
-            path: $ZIP_PATH
+      - name: Clone private repo ProtonKernel/ids
+        run: |
+          git clone https://x-access-token:${{ secrets.IDS_TOKEN }}@github.com/ProtonKernel/ids ../ids
 
-         - run: export WP="$(realpath $PWD/../)"; bash build/ckbuild_actions.sh -tR
+      - name: Build with -tlcRk
+        run: |
+          export WP="$(realpath $PWD/../)"
+          bash build/ckbuild.sh -tcRk
+          echo "ZIP_PATH_K=$ZIP_PATH" >> $GITHUB_ENV
+          cp "$ZIP_PATH" ../kernel-build-k.zip
 
-         - name: Upload
-           uses: actions/upload-artifact@v4
-           with:
-            name: $ZIP_PATH
-            path: $ZIP_PATH
+      - name: Upload build with -k
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-build-k
+          path: ../kernel-build-k.zip
+
+      - name: Build with -tlcR
+        run: |
+          export WP="$(realpath $PWD/../)"
+          bash build/ckbuild.sh -tcR
+          echo "ZIP_PATH_NOK=$ZIP_PATH" >> $GITHUB_ENV
+          cp "$ZIP_PATH" ../kernel-build-nok.zip
+
+      - name: Upload build sin -k
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-build-nok
+          path: ../kernel-build-nok.zip
