@@ -14,6 +14,26 @@ BLUE="\e[1;34m"
 ORANGE="\e[1;33m"
 ENDCOLOR="\e[0m"
 
+# Function for consistent error messages
+error_msg() {
+    echo -e "${RED}[ERROR] $1${ENDCOLOR}" >&2
+}
+
+# Function for consistent info messages
+info_msg() {
+    echo -e "${BLUE}[INFO] $1${ENDCOLOR}"
+}
+
+# Function for consistent success messages
+success_msg() {
+    echo -e "${GREEN}[SUCCESS] $1${ENDCOLOR}"
+}
+
+# Function for consistent warning messages
+warning_msg() {
+    echo -e "${ORANGE}[WARNING] $1${ENDCOLOR}"
+}
+
 # Toolchains
 AOSP_REPO="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+/refs/heads/master"
 AOSP_ARCHIVE="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/master"
@@ -31,17 +51,17 @@ BUILD_HOST="$USER@$(hostname)"
 upload() {
     cd $KDIR
     if [[ "${DO_OSHI}" = "1" ]]; then
-    echo -e "$BLUE\nINFO: Uploading to bashupload.com\n$ENDCOLOR"
+    info_msg "Uploading to bashupload.com\n"
     curl -T $ZIP_PATH bashupload.com; echo -e
     fi
 
     if [[ "${DO_TG}" = "1" ]]; then
-            echo -e "$BLUE\nINFO: Uploading to Telegram\n$ENDCOLOR"
+            info_msg "Uploading to Telegram\n"
             tgs $ZIP_PATH
-            echo -e "$GREEN Done!$ENDCOLOR"
+            success_msg ""
     fi
     if [[ "${UPLOAD_LOG}" = "1" ]]; then
-        echo -e "$BLUE\nINFO: Uploading log to bashupload.com$ENDCOLOR"
+        info_msg "Uploading log to bashupload.com"
         curl -T log.txt bashupload.com
     fi
     # Delete any leftover zip files
@@ -56,13 +76,13 @@ else
     IS_GP=0
 fi
 if [ -z "$WP" ]; then
-    echo -e "$RED\nERROR: Environment not Gitpod! Please set the WP env var...\n$ENDCOLOR"
+    error_msg "Environment not Gitpod! Please set the WP env var...\n"
     upload
     exit 1
 fi
 
 if [ ! -d drivers ]; then
-    echo -e "$RED\nERROR: Please exec from top-level kernel tree\n$ENDCOLOR"
+    error_msg "Please exec from top-level kernel tree\n"
     upload
     exit 1
 fi
@@ -116,23 +136,23 @@ if [ ! -f ".flag" ]; then
   if grep -q -E "Ubuntu|Debian|Kali" /etc/os-release; then
     sudo apt install $UB_DEPLIST -y
       if [ $? -ne 0 ]; then
-        echo -e "$RED\nERROR: Failed to install dependencies\n$ENDCOLOR"
+        error_msg "Failed to install dependencies\n"
         upload
         exit 1
       else
         touch ".flag"
-        echo -e "$GREEN\nINFO: Succesfully installed dependencies!$ENDCOLOR"
+        success_msg "Succesfully installed dependencies!"
       fi
   else
-      echo -e "$BLUE\nINFO: Your distro is not Ubuntu or Debian, skipping dependencies installation...$ENDCOLOR"
-      echo -e "$BLUE INFO: Make sure you have these dependencies installed before proceeding: $UB_DEPLIST $ENDCOLOR"
+      info_msg "Your distro is not Ubuntu or Debian, skipping dependencies installation..."
+      info_msg "Make sure you have these dependencies installed before proceeding: $UB_DEPLIST"
   fi
 else
-  echo -e "$BLUE\nINFO: Dependencies should be installed$ENDCOLOR"
+  info_msg "Dependencies should be installed"
 fi
 
 if ! command -v dtc &>/dev/null; then
-    echo -e "$RED\nERROR: 'dtc' (Device Tree Compiler) is not installed. Aborting...\n$ENDCOLOR"
+    error_msg "'dtc' (Device Tree Compiler) is not installed. Aborting...\n"
     upload
     exit 1
 fi
@@ -175,48 +195,48 @@ while [[ "$1" == -* ]]; do
         FLAG="${1:$i:1}"
         case $FLAG in
             m)
-                echo -e "$BLUE\nINFO: menuconfig argument passed, kernel configuration menu will be shown...$ENDCOLOR"
+                info_msg "menuconfig argument passed, kernel configuration menu will be shown..."
                 DO_MENUCONFIG=1
                 ;;
             k)
-                echo -e "$BLUE\nINFO: KernelSU argument passed, a KernelSU build will be made...$ENDCOLOR"
+                info_msg "KernelSU argument passed, a KernelSU build will be made..."
                 DO_KSU=1
                 ;;
             c)
-                echo -e "$BLUE\nINFO: clean argument passed, output directory will be wiped...$ENDCOLOR"
+                info_msg "clean argument passed, output directory will be wiped..."
                 DO_CLEAN=1
                 ;;
             R)
-                echo -e "$BLUE\nINFO: Release argument passed, build marked as release$ENDCOLOR"
+                info_msg "Release argument passed, build marked as release"
                 IS_RELEASE=1
                 ;;
             t)
-                echo -e "$BLUE\nINFO: Telegram argument passed, build will be uploaded to CI$ENDCOLOR"
+                info_msg "Telegram argument passed, build will be uploaded to CI"
                 DO_TG=1
                 ;;
             o)
-                echo -e "$BLUE\nINFO: bashupload.com argument passed, build will be uploaded to bashupload.com$ENDCOLOR"
+                info_msg "bashupload.com argument passed, build will be uploaded to bashupload.com"
                 DO_OSHI=1
                 ;;
             l)
-                echo -e "$BLUE\nINFO: Full-LTO argument passed$ENDCOLOR"
-                echo -e "$ORANGE+WARNING: Full-LTO is VERY resource heavy and may take a long time to compile$ENDCOLOR"
+                info_msg "Full-LTO argument passed"
+                warning_msg "Full-LTO is VERY resource heavy and may take a long time to compile"
                 DO_FLTO=1
                 ;;
             r)
-                echo -e "$BLUE\nINFO: config regeneration mode$ENDCOLOR"
+                info_msg "config regeneration mode"
                 DO_REGEN=1
                 ;;
             n)
-                echo -e "$BLUE\nINFO: Build with Nethunter support $ENDCOLOR"
+                info_msg "Build with Nethunter support "
                 DO_NH=1
                 ;;
             u)
-                echo -e "$BLUE\nINFO: Log uploading is enabled $ENDCOLOR"
+                info_msg "Log uploading is enabled "
                 UPLOAD_LOG=1
                 ;;
             *)
-                echo -e "$RED\nERROR: Unknown flag '$FLAG'$ENDCOLOR"
+                error_msg "Unknown flag '$FLAG'"
                 upload
                 exit 1
                 ;;
@@ -254,7 +274,7 @@ case "$BUILD_VARIANT" in
         BUILD_TYPE_OC=1
         ;;
     *)
-        echo -e "$BLUE\nINFO: Unknown build variant: $BUILD_VARIANT, defaulting to 'default'$ENDCOLOR"
+        info_msg "Unknown build variant: $BUILD_VARIANT, defaulting to 'default'"
         BUILD_TYPE_DEFAULT=1
         ;;
 esac
@@ -272,7 +292,7 @@ fi
 if [[ "${IS_RELEASE}" = "1" ]]; then
     BUILD_TYPE="Release"
 else
-    echo -e "$BLUE\nINFO: Build marked as testing$ENDCOLOR"
+    info_msg "Build marked as testing"
     BUILD_TYPE="Testing"
 fi
 
@@ -300,7 +320,7 @@ ZIP_PATH="$KDIR/build/ProtonPlus-$K_VER-$FK_TYPE-$CODENAME-$DATE.zip"
 export ZIP_PATH="$KDIR/build/ProtonPlus-$K_VER-$FK_TYPE-$CODENAME-$DATE.zip"
 TAR_PATH="$KDIR/build/ProtonPlus-$K_VER-$FK_TYPE-$CODENAME-$DATE.tar"
 
-echo -e "$BLUE\nINFO: Build info:$ENDCOLOR
+info_msg "Build info:
 - Device: $DEVICE ($CODENAME)
 - Addons = $FK_TYPE
 - Proton version: $K_VER
@@ -315,26 +335,39 @@ echo -e "$BLUE\nINFO: Build info:$ENDCOLOR
 get_toolchain() {
     # AOSP Clang
     if [[ $1 = "aosp" ]]; then
-        if ! [ -d "$AC_DIR" ]; then
-            # --- MODIFICATION START ---
-            # Hardcode the specific AOSP Clang version and URL
-            AOSP_CLANG_VERSION="clang-r563880"
-            AOSP_CLANG_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/mirror-goog-main-llvm-toolchain-source/clang-r563880.tar.gz"
-            AOSP_CLANG_TARBALL="${AOSP_CLANG_VERSION}.tar.gz"
+        # Hardcode the specific AOSP Clang version and URL
+        AOSP_CLANG_VERSION="clang-r563880"
+        AOSP_CLANG_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/mirror-goog-main-llvm-toolchain-source/clang-r563880.tar.gz"
+        AOSP_CLANG_TARBALL="${AOSP_CLANG_VERSION}.tar.gz"
 
-            echo -e "$BLUE\nINFO: AOSP Clang not found! Downloading specific version ($AOSP_CLANG_VERSION)...$ENDCOLOR"
+        # Redownload AOSP Clang if an older version is installed of it
+        INSTALLED_AOSP_CLANG_STRING=$(cat $AC_DIR/AndroidVersion.txt)
+        INSTALLED_AOSP_CLANG_VERSION=$(echo "$INSTALLED_AOSP_CLANG_STRING" | grep -o 'r[0-9]\+')
+        if [[ ! $AOSP_CLANG_VERSION = "clang-$INSTALLED_AOSP_CLANG_VERSION" ]]; then
+            info_msg "Deleting older AOSP Clang..."
+            if ! rm -fr "$AC_DIR"; then
+                error_msg "Failed to delete older AOSP Clang"
+                upload
+                exit 1
+            fi
+        fi
+
+        if [[ ! -d "$AC_DIR" ]]; then
+            info_msg "AOSP Clang not found! Downloading specific version ($AOSP_CLANG_VERSION)..."
             
             # Download the specified version
             if ! curl -Lo "$AOSP_CLANG_TARBALL" "$AOSP_CLANG_URL"; then
-                echo -e "$RED\nERROR: Downloading $AOSP_CLANG_URL failed! Aborting...$ENDCOLOR"
+                error_msg "Downloading $AOSP_CLANG_URL failed! Aborting..."
+                upload
                 exit 1
             fi
 
             # Extract the toolchain
             mkdir -p "$AC_DIR"
-            echo -e "$BLUE\nINFO: Extracting toolchain...$ENDCOLOR"
+            info_msg "Extracting toolchain..."
             if ! tar -xf "$AOSP_CLANG_TARBALL" -C "$AC_DIR"; then
-                echo -e "$RED\nERROR: Failed to extract $AOSP_CLANG_TARBALL! Aborting...$ENDCOLOR"
+                error_msg "Failed to extract $AOSP_CLANG_TARBALL! Aborting..."
+                upload
                 exit 1
             fi
 
@@ -344,16 +377,15 @@ get_toolchain() {
             # Compatibility fixes from original script
             touch "$AC_DIR/bin/aarch64-linux-gnu-elfedit" && chmod +x "$AC_DIR/bin/aarch64-linux-gnu-elfedit"
             touch "$AC_DIR/bin/arm-linux-gnueabi-elfedit" && chmod +x "$AC_DIR/bin/arm-linux-gnueabi-elfedit"
-            # --- MODIFICATION END ---
         fi
     fi
 
     # Proton Clang
     if [[ $1 = "proton" ]]; then
         if ! [ -d "$PC_DIR" ]; then
-            echo -e "$BLUE\nINFO: Proton Clang not found! Cloning to $PC_DIR...$ENDCOLOR"
+            info_msg "Proton Clang not found! Cloning to $PC_DIR..."
             if ! git clone -q --depth=1 $PC_REPO $PC_DIR; then
-                echo -e "$RED\nERROR: Cloning failed! Aborting...$ENDCOLOR"
+                error_msg "Cloning failed! Aborting..."
                 upload
                 exit 1
             fi
@@ -363,9 +395,9 @@ get_toolchain() {
     # Lolz Clang
     if [[ $1 = "lolz" ]]; then
         if ! [ -d "$LZ_DIR" ]; then
-            echo -e "$BLUE\nINFO: Lolz Clang not found! Cloning to $LZ_DIR...$ENDCOLOR"
+            info_msg "Lolz Clang not found! Cloning to $LZ_DIR..."
             if ! git clone -q --depth=1 $LZ_REPO $LZ_DIR; then
-                echo -e "$RED\nERROR: Cloning failed! Aborting...$ENDCOLOR"
+                error_msg "Cloning failed! Aborting..."
                 upload
                 exit 1
             fi
@@ -377,15 +409,15 @@ prep_toolchain() {
     if [[ $1 = "aosp" ]]; then
         CLANG_DIR="$AC_DIR"
         CCARM64_PREFIX=aarch64-linux-gnu-
-        echo -e "$BLUE\nINFO: Using AOSP Clang...$ENDCOLOR"
+        info_msg "Using AOSP Clang..."
     elif [[ $1 = "proton" ]]; then
         CLANG_DIR="$PC_DIR"
         CCARM64_PREFIX=aarch64-linux-gnu-
-        echo -e "$BLUE\nINFO: Using Proton Clang...$ENDCOLOR"
+        info_msg "Using Proton Clang..."
     elif [[ $1 = "lolz" ]]; then
         CLANG_DIR="$LZ_DIR"
         CCARM64_PREFIX=aarch64-linux-gnu-
-        echo -e "$BLUE\nINFO: Using Lolz Clang...$ENDCOLOR"
+        info_msg "Using Lolz Clang..."
     fi
 
     ## Set PATH
@@ -428,22 +460,21 @@ tgs() {
 prep_build() {
     # Prepare ccache
     if [ "$USE_CCACHE" = "1" ]; then
-        echo -e "$BLUE\nINFO: Using ccache\n$ENDCOLOR"
+        info_msg "Using ccache\n"
         if [ "$IS_GP" = "1" ]; then
             export CCACHE_DIR=$WP/.ccache
             ccache -M 10G
         else
-            echo -e "$BLUE\nINFO: Environment is not Gitpod, please make sure you setup your own ccache configuration!\n $ENDCOLOR"
+            info_msg "Environment is not Gitpod, please make sure you setup your own ccache configuration!\n "
         fi
     fi
 
     # Show compiler information
-    echo -e "$BLUE\nCompiler information:$ENDCOLOR"
-    echo -e "$BLUE INFO: $KBUILD_COMPILER_STRING\n$ENDCOLOR"
+    info_msg "\nCompiler information:"
+    info_msg "$KBUILD_COMPILER_STRING\n"
 }
 
 build() {
-
     # Not that necessary anymore, but still export it just in case.
     export PLATFORM_VERSION=11
     export ANDROID_MAJOR_VERSION=r
@@ -464,25 +495,25 @@ build() {
     make -j$(nproc --all) O=out CC="clang" CROSS_COMPILE="$CCARM64_PREFIX" $DEFCONFIG $([[ "$DO_KSU" == "1" ]] && echo -e "ksu.config") $([[ "$DO_NH" == "1" ]] && echo -e "nethunter.config")
 
     if [ $DO_MENUCONFIG = "1" ]; then
-        echo -e "$BLUE\nINFO: Menuconfig has been called...$ENDCOLOR"
+        info_msg "Menuconfig has been called..."
         make O=out menuconfig < /dev/tty > /dev/tty 2> /dev/tty
         if [ $? -ne 0 ]; then
-            echo -e "$RED\nERROR: Menuconfig failed!$ENDCOLOR"
+            error_msg "Menuconfig failed!"
             upload
             exit 1
         else
-            echo -e "$BLUE\nINFO: Menuconfig finished$ENDCOLOR"
+            info_msg "Menuconfig finished"
         fi
     fi
 
     if [[ "$DO_REGEN" = "1" ]]; then
         if [[ "$DO_KSU" = "1" ]]; then
-            echo -e "$RED\nERROR: Can't regenerate with KSU argument$ENDCOLOR"
+            error_msg "Can't regenerate with KSU argument"
             upload
             exit 1
         fi
         cp -f out/.config arch/arm64/configs/$DEFCONFIG
-        echo -e "$BLUE\nINFO: Configuration regenerated. Check the changes!$ENDCOLOR"
+        info_msg "Configuration regenerated. Check the changes!"
         exit 0
     fi
 
@@ -511,7 +542,7 @@ build() {
         scripts/config --file "$KDIR/out/.config" --set-val CONFIG_SOC_EXYNOS2100_CL2_UV 0
     fi
     ## Start the build
-    echo -e "$BLUE\nINFO: Starting compilation...\n$ENDCOLOR"
+    info_msg "Starting compilation...\n"
 
     make -j$(nproc --all) O=out CC="clang" CROSS_COMPILE="$CCARM64_PREFIX" dtbs
     if [ $USE_CCACHE = "1" ]; then
@@ -523,43 +554,30 @@ build() {
 }
 
 packing() {
-    # # Build zip
-    # if [ $DO_ZIP = 1 ]; then
-    #     echo -e "$BLUE\nINFO: Building zip...$ENDCOLOR"
-    #     cd "$(pwd)/build/zip"
-    #     rm -f "$ZIP_PATH"
-    #     brotli --quality=3 -c boot.img > boot.br
-    #     brotli --quality=3 -c vendor_boot.img > vendor_boot.br
-    #     zip -r9 -q "$ZIP_PATH" META-INF boot.br vendor_boot.br
-    #     rm -f boot.br vendor_boot.br
-    #     cd "$KDIR"
-    #     echo -e "$BLUE INFO: Done! $BLUE\nINFO: Output: $ZIP_PATH\n$ENDCOLOR"
-    # fi
-
     # Make an AnyKernel3-based zip
     if [ $DO_ZIP = 1 ]; then
         if [ -d $AK3_DIR ]; then
-            echo -e "$BLUE\nINFO: Local AnyKernel3 dir was found$ENDCOLOR"
+            info_msg "Local AnyKernel3 dir was found"
         else
             if ! git clone -q -b $AK3_BRANCH --depth=1 $AK3_URL $AK3_DIR; then
-                echo -e "$RED\nERROR: Failed to clone AnyKernel3!$ENDCOLOR"
+                error_msg "Failed to clone AnyKernel3!"
                 upload
                 exit 1
             fi
-            echo -e "$BLUE\nINFO: Cloning AnyKernel3$ENDCOLOR"
+            info_msg "Cloning AnyKernel3"
         fi
-        echo -e "$BLUE\nINFO: Building zip...$ENDCOLOR"
+        info_msg "Building zip..."
         cd "$AK3_DIR"
         cp -f "$OUT_VENDORBOOTIMG" vendor_boot.img
         cp -f "$OUT_KERNEL" .
         zip -r9 -q "$ZIP_PATH" * -x .git .github README.md
         cd "$KDIR"
-        echo -e "$GREEN INFO: Done!$ENDCOLOR $BLUE\nINFO: Output: $ZIP_PATH\n$ENDCOLOR"
+        success_msg "Output: $ZIP_PATH\n"
     fi
 
     # Build tar
     if [ $DO_TAR = 1 ]; then
-        echo -e "$BLUE\nINFO: Building tar...$ENDCOLOR"
+        info_msg "Building tar..."
         cd "$(pwd)/build"
         rm -f "$TAR_PATH"
         lz4 -c -12 -B6 --content-size "$OUT_BOOTIMG" > boot.img.lz4 2>/dev/null
@@ -567,7 +585,7 @@ packing() {
         tar -cf "$TAR_PATH" boot.img.lz4 vendor_boot.img.lz4
         rm -f boot.img.lz4 vendor_boot.img.lz4
         cd "$KDIR"
-        echo -e "$GREEN INFO: Done! $BLUE\nINFO: Output: $TAR_PATH\n$ENDCOLOR"
+        success_msg "Output: $TAR_PATH\n"
     fi
 }
 
@@ -576,9 +594,9 @@ post_build() {
 
     ## Check if the kernel binaries were built.
     if [ -f "out/arch/arm64/boot/Image" ]; then
-        echo -e "$GREEN\nINFO: Kernel compiled succesfully!...\n $ENDCOLOR"
+        success_msg "Kernel compiled succesfully!...\n "
     else
-        echo -e "$RED\nERROR: Kernel files not found! Compilation failed?$ENDCOLOR"
+        error_msg "Kernel files not found! Compilation failed?"
         upload
         exit 1
     fi
@@ -603,10 +621,10 @@ post_build() {
     elif [ "$BUILD_TYPE_OC" = "1" ]; then
         DTS_SRC="$DTS_OC"
     fi
-    echo -e "$BLUE\nINFO: Compiling DTS: $DTS_SRC -> $DTB_OUT\n$ENDCOLOR"
+    info_msg "Compiling DTS: $DTS_SRC -> $DTB_OUT\n"
     dtc -I dts -O dtb -o "$DTB_OUT" "$DTS_SRC" >/dev/null 2>&1
     if [ $? -ne 0 ]; then
-        echo -e "$RED ERROR: dtc failed to compile $DTS_SRC\n$ENDCOLOR"
+        echo -e "$RED ERROR: dtc failed to compile $DTS_SRC\n"
         upload
         exit 1
     fi
@@ -615,7 +633,7 @@ post_build() {
 
     # Handle compiled modules
     if ! find "$MOD_OUTDIR/lib/modules" -mindepth 1 -type d | read; then
-        echo -e "$RED\nERROR: Unknown error!\n $ENDCOLOR"
+        error_msg "Unknown error!\n "
         upload
         exit 1
     fi
@@ -633,7 +651,7 @@ post_build() {
     done
 
     if [ "$missing_modules" != "" ]; then
-            echo -e "$RED\nERROR: the following modules were not found: $missing_modules $ENDCOLOR"
+            error_msg "the following modules were not found: $missing_modules "
         upload
         exit 1
     fi
@@ -642,7 +660,7 @@ post_build() {
 	if [ -f "$IN_VBOOT/lib/modules/modules.load" ]; then
 		dupes=$(sort "$IN_VBOOT/lib/modules/modules.load" | uniq -d | xargs)
 		if [ -n "$dupes" ]; then
-			echo -e "$RED\nERROR: Duplicate module entries found in modules.load: $dupes\n$ENDCOLOR"
+			error_msg "Duplicate module entries found in modules.load: $dupes\n"
 			upload
 			exit 1
 		fi
@@ -654,7 +672,7 @@ post_build() {
 		all_load=$(sort "$IN_VBOOT/lib/modules/modules.load")
 		not_in_load=$(comm -23 <(echo -e "$all_built") <(echo -e "$all_load") | xargs)
 		if [ -n "$not_in_load" ]; then
-			echo -e "$ORANGE\nWARNING: The following modules exist but are NOT in modules.load: $not_in_load\n$ENDCOLOR"
+			warning_msg "The following modules exist but are NOT in modules.load: $not_in_load\n"
 		fi
 	fi
 
@@ -674,16 +692,16 @@ post_build() {
     rm -rf "$MODULES_DIR/0.0"
 
     # Build the images
-    echo -e "$BLUE\nINFO: Building dtb image..."
+    info_msg "Building dtb image..."
     python "$MKDTBOIMG" create "$OUT_DTBIMAGE" --custom0=0x00000000 --custom1=0xff000000 --version=0 --page_size=2048 "$TMPDIR/exynos2100.dtb"
     if [ $? -ne 0 ]; then
-    echo -e "$RED\nERROR: Building dtb image failed\n$ENDCOLOR"
+    error_msg "Building dtb image failed\n"
     upload
     exit 1
 fi
-    echo -e "$GREEN INFO: Done!$ENDCOLOR"
+    success_msg ""
 
-    echo -e "$BLUE\nINFO: Building boot image...$ENDCOLOR"
+    info_msg "Building boot image..."
     $MKBOOTIMG --header_version 3 \
         --kernel "$OUT_KERNEL" \
         --output "$OUT_BOOTIMG" \
@@ -694,9 +712,9 @@ fi
     upload
     exit 1
 fi
-    echo -e "$GREEN INFO: Done!$ENDCOLOR"
+    success_msg ""
 
-    echo -e "$BLUE\nINFO: Building vendor_boot image...$ENDCOLOR"
+    info_msg "Building vendor_boot image..."
     cd "$RAMDISK_DIR"
     find . | cpio --quiet -o -H newc -R root:root | gzip -9 > ../ramdisk.cpio.gz
     cd ..
@@ -715,7 +733,7 @@ fi
 
     cd "$KDIR"
 
-    echo -e "$GREEN INFO: Done!$ENDCOLOR"
+    success_msg ""
 
     packing
 }
@@ -726,7 +744,7 @@ clean() {
 }
 
 clean_tmp() {
-    echo -e "$BLUE\nINFO: Cleaning after build...$ENDCOLOR"
+    info_msg "Cleaning after build..."
     rm -rf "$TMPDIR"
     rm -rf "$MOD_OUTDIR"
     rm -f "${OUT_VENDORBOOTIMG}" "${OUT_BOOTIMG}"
