@@ -274,8 +274,8 @@ case "$BUILD_VARIANT" in
         BUILD_TYPE_OC=1
         ;;
     *)
-        info_msg "Unknown build variant: $BUILD_VARIANT, defaulting to 'default'"
-        BUILD_TYPE_DEFAULT=1
+        error_msg "Unknown build variant: $BUILD_VARIANT"
+        exit 1
         ;;
 esac
 
