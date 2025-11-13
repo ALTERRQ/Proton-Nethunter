@@ -66,6 +66,9 @@
 #include <linux/task_integrity.h>
 
 #include <linux/uaccess.h>
+#ifdef CONFIG_KSU_SUSFS_SUS_SU
+#include <linux/susfs_def.h>
+#endif
 #include <asm/mmu_context.h>
 #include <asm/tlb.h>
 
@@ -81,8 +84,6 @@ int suid_dumpable = 0;
 
 static LIST_HEAD(formats);
 static DEFINE_RWLOCK(binfmt_lock);
-
-#define HWCOMPOSER_BIN_PREFIX "/vendor/bin/hw/android.hardware.graphics.composer"
 
 void __register_binfmt(struct linux_binfmt * fmt, int insert)
 {
@@ -708,7 +709,7 @@ int setup_arg_pages(struct linux_binprm *bprm,
 		    unsigned long stack_top,
 		    int executable_stack)
 {
-	unsigned long ret;
+	int ret;
 	unsigned long stack_shift;
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma = bprm->vma;
@@ -1738,6 +1739,13 @@ int search_binary_handler(struct linux_binprm *bprm)
 }
 EXPORT_SYMBOL(search_binary_handler);
 
+#ifdef CONFIG_KSU_SUSFS_SUS_SU
+extern bool susfs_is_sus_su_hooks_enabled __read_mostly;
+extern bool __ksu_is_allow_uid(uid_t uid);
+extern int ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr, void *argv,
+				void *envp, int *flags);
+#endif
+
 static int exec_binprm(struct linux_binprm *bprm)
 {
 	pid_t old_pid, old_vpid;
@@ -1779,8 +1787,15 @@ static int __do_execve_file(int fd, struct filename *filename,
 		return PTR_ERR(filename);
 
 #ifdef CONFIG_KSU_SUSFS_SUS_SU
-	if (likely(susfs_is_sus_su_hooks_enabled))
+	if (likely(susfs_is_current_proc_umounted())) {
+		goto orig_flow;
+	}
+	if (likely(susfs_is_sus_su_hooks_enabled) &&
+		unlikely(__ksu_is_allow_uid(current_uid().val)))
+	{
 		ksu_handle_execveat_sucompat(&fd, &filename, &argv, &envp, &flags);
+	}
+orig_flow:
 #endif
 
 	/*
@@ -1907,16 +1922,6 @@ static int __do_execve_file(int fd, struct filename *filename,
 	rseq_execve(current);
 	acct_update_integrals(current);
 	task_numa_free(current, false);
-
-	if (is_global_init(current->parent)) {
-		if (unlikely(!strncmp(filename->name,
-					   HWCOMPOSER_BIN_PREFIX,
-					   strlen(HWCOMPOSER_BIN_PREFIX)))) {
-			current->flags |= PF_PERF_CRITICAL;
-			set_cpus_allowed_ptr(current, cpu_perf_mask);
-		}
-	}
-
 	free_bprm(bprm);
 	kfree(pathbuf);
 	if (filename)
@@ -1947,12 +1952,6 @@ out_ret:
 		putname(filename);
 	return retval;
 }
-
-#ifdef CONFIG_KSU_SUSFS_SUS_SU
-extern bool susfs_is_sus_su_hooks_enabled __read_mostly;
-extern int ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr, void *argv,
-				void *envp, int *flags);
-#endif
 
 static int do_execveat_common(int fd, struct filename *filename,
 			      struct user_arg_ptr argv,

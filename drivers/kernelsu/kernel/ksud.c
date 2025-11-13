@@ -58,11 +58,11 @@ static void stop_input_hook();
 static struct work_struct stop_vfs_read_work;
 static struct work_struct stop_execve_hook_work;
 static struct work_struct stop_input_hook_work;
-#endif
-
+#else
 bool ksu_vfs_read_hook __read_mostly = true;
 bool ksu_execveat_hook __read_mostly = true;
 bool ksu_input_hook __read_mostly = true;
+#endif
 
 #ifdef CONFIG_KSU_SUSFS_SUS_SU
 bool susfs_is_sus_su_ready = false;
@@ -74,15 +74,15 @@ u32 ksu_devpts_sid;
 bool ksu_is_compat __read_mostly = false;
 #endif
 
-void ksu_on_post_fs_data(void)
+void on_post_fs_data(void)
 {
 	static bool done = false;
 	if (done) {
-		pr_info("ksu_on_post_fs_data already done\n");
+		pr_info("on_post_fs_data already done\n");
 		return;
 	}
 	done = true;
-	pr_info("ksu_on_post_fs_data!\n");
+	pr_info("on_post_fs_data!\n");
 	ksu_load_allow_list();
 	// sanity check, this may influence the performance
 	stop_input_hook();
@@ -200,14 +200,13 @@ int ksu_handle_execveat_ksud(int *fd, struct filename **filename_ptr,
 			const char __user *p = get_user_arg_ptr(*argv, 1);
 			if (p && !IS_ERR(p)) {
 				char first_arg[16];
-				ksu_strncpy_from_user_nofault(
+				ksu_strncpy_from_user_retry(
 					first_arg, p, sizeof(first_arg));
 				pr_info("/system/bin/init first arg: %s\n",
 					first_arg);
-				if (!strcmp(first_arg, "second_stage") || 
-				    (argc == 2 && !strcmp(first_arg, ""))) {
+				if (!strcmp(first_arg, "second_stage")) {
 					pr_info("/system/bin/init second_stage executed\n");
-					ksu_apply_kernelsu_rules();
+					apply_kernelsu_rules();
 					init_second_stage_executed = true;
 					ksu_android_ns_fs_check();
 				}
@@ -226,12 +225,12 @@ int ksu_handle_execveat_ksud(int *fd, struct filename **filename_ptr,
 			const char __user *p = get_user_arg_ptr(*argv, 1);
 			if (p && !IS_ERR(p)) {
 				char first_arg[16];
-				ksu_strncpy_from_user_nofault(
+				ksu_strncpy_from_user_retry(
 					first_arg, p, sizeof(first_arg));
 				pr_info("/init first arg: %s\n", first_arg);
 				if (!strcmp(first_arg, "--second-stage")) {
 					pr_info("/init second_stage executed\n");
-					ksu_apply_kernelsu_rules();
+					apply_kernelsu_rules();
 					init_second_stage_executed = true;
 					ksu_android_ns_fs_check();
 				}
@@ -251,7 +250,7 @@ int ksu_handle_execveat_ksud(int *fd, struct filename **filename_ptr,
 					}
 					char env[256];
 					// Reading environment variable strings from user space
-					if (ksu_strncpy_from_user_nofault(
+					if (ksu_strncpy_from_user_retry(
 						    env, p, sizeof(env)) < 0)
 						continue;
 					// Parsing environment variable names and values
@@ -268,7 +267,7 @@ int ksu_handle_execveat_ksud(int *fd, struct filename **filename_ptr,
 					    (!strcmp(env_value, "1") ||
 					     !strcmp(env_value, "true"))) {
 						pr_info("/init second_stage executed\n");
-						ksu_apply_kernelsu_rules();
+						apply_kernelsu_rules();
 						init_second_stage_executed =
 							true;
 						ksu_android_ns_fs_check();
@@ -283,7 +282,7 @@ int ksu_handle_execveat_ksud(int *fd, struct filename **filename_ptr,
 		first_app_process = false;
 		pr_info("exec app_process, /data prepared, second_stage: %d\n",
 			init_second_stage_executed);
-		ksu_on_post_fs_data(); // we keep this for old ksud
+		on_post_fs_data(); // we keep this for old ksud
 		stop_execve_hook();
 	}
 
@@ -492,10 +491,12 @@ __maybe_unused int ksu_handle_execve_ksud(const char __user *filename_user,
 	struct filename filename_in, *filename_p;
 	char path[32];
 
+#ifndef CONFIG_KSU_KPROBES_HOOK
 	// return early if disabled.
 	if (!ksu_execveat_hook) {
 		return 0;
 	}
+#endif
 
 	if (!filename_user)
 		return 0;

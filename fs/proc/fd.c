@@ -58,16 +58,16 @@ static int seq_show(struct seq_file *m, void *v)
 
 	if (ret)
 		return ret;
-
 #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 	mnt = real_mount(file->f_path.mnt);
-	if (likely(current->susfs_task_state & TASK_STRUCT_NON_ROOT_USER_APP_PROC) &&
-			mnt->mnt_id >= DEFAULT_SUS_MNT_ID) {
+	if (likely(susfs_is_current_proc_umounted()) &&
+				mnt->mnt_id >= DEFAULT_KSU_MNT_ID)
+	{
 		struct path path;
 		char *pathname = kmalloc(PAGE_SIZE, GFP_KERNEL);
 		char *dpath;
 
-		for (; mnt->mnt_id >= DEFAULT_SUS_MNT_ID; mnt = mnt->mnt_parent) { }
+		for (; mnt->mnt_id >= DEFAULT_KSU_MNT_ID; mnt = mnt->mnt_parent) { }
 
 		if (!pathname) {
 			goto out_seq_printf;
@@ -91,9 +91,9 @@ out_free_pathname:
 	}
 out_seq_printf:
 	seq_printf(m, "pos:\t%lli\nflags:\t0%o\nmnt_id:\t%i\nino:\t%lu\n",
-		   (long long)file->f_pos, f_flags,
-		   mnt->mnt_id,
-		   file_inode(file)->i_ino);
+			(long long)file->f_pos, f_flags,
+			mnt->mnt_id,
+			file_inode(file)->i_ino);
 bypass_orig_flow:
 #else
 	seq_printf(m, "pos:\t%lli\nflags:\t0%o\nmnt_id:\t%i\n",

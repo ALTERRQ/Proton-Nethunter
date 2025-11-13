@@ -22,6 +22,7 @@ ldflags-y := -shared -nostdlib -soname=linux-vdso.so.1 --hash-style=sysv \
 
 ccflags-y := -fno-common -fno-builtin -fno-stack-protector -ffixed-x18
 ccflags-y += -DDISABLE_BRANCH_PROFILING
+ccflags-y += $(call cc-disable-warning, default-const-init-unsafe)
 
 VDSO_LDFLAGS := -Bsymbolic
 
@@ -33,6 +34,7 @@ OBJECT_FILES_NON_STANDARD	:= y
 KCOV_INSTRUMENT			:= n
 
 CFLAGS_vgettimeofday.o = -mcmodel=tiny -fasynchronous-unwind-tables
+CFLAGS_vgettimeofday.o += $(call cc-disable-warning, default-const-init-unsafe)
 
 ifneq ($(c-gettimeofday-y),)
   CFLAGS_vgettimeofday.o += -include $(c-gettimeofday-y)

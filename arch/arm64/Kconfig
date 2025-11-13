@@ -622,6 +622,7 @@ config ARM64_ERRATUM_3194386
 	  * ARM Neoverse-V1 erratum 3324341
 	  * ARM Neoverse V2 erratum 3324336
 	  * ARM Neoverse-V3 erratum 3312417
+	  * ARM Neoverse-V3AE erratum 3312417
 
 	  On affected cores "MSR SSBS, #0" instructions may not affect
 	  subsequent speculative instructions, which may permit unexepected
@@ -950,27 +951,6 @@ config VENDOR_NR_CPUS
 	int "Maximum number of CPUs (2-4096) governed by vendor"
 	range 2 4096
 	default "8"
-
-config LITTLE_CPU_MASK
-	int "Bitmask of available LITTLE CPUs"
-	help
-	  This is a bitmask specifying which of the CPUs are LITTLE in a
-	  heterogeneous system. Use 0 if you are unsure, which just results in
-	  this storing the bitmask of all available CPUs.
-
-config BIG_CPU_MASK
-	int "Bitmask of available big CPUs"
-	help
-	  This is a bitmask specifying which of the CPUs are big in a
-	  heterogeneous system. Use 0 if you are unsure, which just results in
-	  this storing the bitmask of all available CPUs.
-
-config PRIME_CPU_MASK
-	int "Bitmask of available prime CPUs"
-	help
-	  This is a bitmask specifying which of the CPUs are prime in a
-	  heterogeneous system. Use 0 if you are unsure, which just results in
-	  this storing the bitmask of all available CPUs.
 
 config HOTPLUG_CPU
 	bool "Support for hot-pluggable CPUs"

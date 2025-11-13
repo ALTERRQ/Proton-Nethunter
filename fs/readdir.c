@@ -719,8 +719,7 @@ static int compat_filldir(struct dir_context *ctx, const char *name, int namlen,
 	struct compat_getdents_callback *buf =
 		container_of(ctx, struct compat_getdents_callback, ctx);
 	compat_ulong_t d_ino;
-	int reclen = ALIGN(offsetof(struct compat_linux_dirent, d_name) +
-		namlen + 2, sizeof(compat_long_t));
+	int reclen = ALIGN(offsetof(struct compat_linux_dirent, d_name) + namlen + 2, sizeof(compat_long_t));
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
 	struct inode *inode;
 #endif
@@ -728,11 +727,6 @@ static int compat_filldir(struct dir_context *ctx, const char *name, int namlen,
 	buf->error = -EINVAL;	/* only used if we fail.. */
 	if (reclen > buf->count)
 		return -EINVAL;
-	d_ino = ino;
-	if (sizeof(d_ino) < sizeof(ino) && d_ino != ino) {
-		buf->error = -EOVERFLOW;
-		return -EOVERFLOW;
-	}
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
 	if (buf->is_base_dentry_android_data_root_dir) {
 		if (susfs_is_sus_android_data_d_name_found(name)) {
@@ -755,6 +749,11 @@ static int compat_filldir(struct dir_context *ctx, const char *name, int namlen,
 	iput(inode);
 orig_flow:
 #endif
+	d_ino = ino;
+	if (sizeof(d_ino) < sizeof(ino) && d_ino != ino) {
+		buf->error = -EOVERFLOW;
+		return -EOVERFLOW;
+	}
 	dirent = buf->previous;
 	if (dirent) {
 		if (signal_pending(current))

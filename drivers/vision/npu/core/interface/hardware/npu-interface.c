@@ -342,12 +342,16 @@ int npu_interface_open(struct npu_system *system)
 	if (ret)
 		isr_cpu_affinity = 0;
 	npu_info("set the CPU affinity of ISR to %u\n", isr_cpu_affinity);
-	ret = irq_set_affinity_hint(system->irq0, cpumask_of(isr_cpu_affinity));
-	if (ret)
-		npu_warn("fail(%d) in irq_set_affinity_hint(irq0)\n", ret);
-	ret = irq_set_affinity_hint(system->irq1, cpumask_of(isr_cpu_affinity));
-	if (ret)
-		npu_warn("fail(%d) in irq_set_affinity_hint(irq1)\n", ret);
+	if (!IS_ENABLED(CONFIG_IRQ_SBALANCE)) {
+		ret = irq_set_affinity_hint(system->irq0, cpumask_of(isr_cpu_affinity));
+		if (ret)
+			npu_warn("fail(%d) in irq_set_affinity_hint(irq0)\n", ret);
+		ret = irq_set_affinity_hint(system->irq1, cpumask_of(isr_cpu_affinity));
+		if (ret)
+			npu_warn("fail(%d) in irq_set_affinity_hint(irq1)\n", ret);
+	} else {
+		ret = 0;
+	}
 
 	wq = alloc_workqueue("rprt_manager", __WQ_LEGACY | __WQ_ORDERED, 0);
 	if (!wq) {
@@ -399,8 +403,10 @@ int npu_interface_close(struct npu_system *system)
 		wq = NULL;
 	}
 
-	irq_set_affinity_hint(system->irq0, NULL);
-	irq_set_affinity_hint(system->irq1, NULL);
+	if (!IS_ENABLED(CONFIG_IRQ_SBALANCE)) {
+		irq_set_affinity_hint(system->irq0, NULL);
+		irq_set_affinity_hint(system->irq1, NULL);
+	}
 
 	devm_free_irq(dev, system->irq0, NULL);
 	devm_free_irq(dev, system->irq1, NULL);

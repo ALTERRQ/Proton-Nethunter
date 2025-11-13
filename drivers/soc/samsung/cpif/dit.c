@@ -2152,6 +2152,9 @@ int dit_set_irq_affinity(int affinity)
 	int i;
 	int num_cpu;
 
+	if (IS_ENABLED(CONFIG_IRQ_SBALANCE))
+		return 0;
+
 	if (!dc)
 		return -EPERM;
 

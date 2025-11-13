@@ -529,7 +529,8 @@ static int exynos_afm_cpu_up_callback(unsigned int cpu)
 	cpumask_and(&mask, &afm_dom->cpus, cpu_online_mask);
 	if (cpumask_weight(&mask) == 1) {
 		afm_dom->cpu = cpu;
-		irq_set_affinity_hint(afm_dom->irq, &afm_dom->cpus);
+		if (!IS_ENABLED(CONFIG_IRQ_SBALANCE))
+			irq_set_affinity_hint(afm_dom->irq, &afm_dom->cpus);
 	}
 
 	return 0;
@@ -901,7 +902,8 @@ static int init_afm_domain(struct device_node *dn, struct platform_device *pdev)
 	INIT_DELAYED_WORK(&afm_dom->delayed_work, exynos_afm_work_release);
 	init_irq_work(&afm_dom->irq_work, exynos_afm_irq_work);
 
-	irq_set_affinity_hint(afm_dom->irq, &afm_dom->cpus);
+	if (!IS_ENABLED(CONFIG_IRQ_SBALANCE))
+		irq_set_affinity_hint(afm_dom->irq, &afm_dom->cpus);
 
 	if (kobject_init_and_add(&afm_dom->kobj, &ktype_afm,
 				&pdev->dev.kobj, "cluster%d", afm_dom->cluster)) {

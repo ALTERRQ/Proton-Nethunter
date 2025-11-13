@@ -428,6 +428,9 @@ int cp_mbox_set_affinity(u32 idx, int affinity)
 		return -EACCES;
 	}
 
+	if (IS_ENABLED(CONFIG_IRQ_SBALANCE))
+		return 0;
+
 #if defined(CONFIG_VENDOR_NR_CPUS)
 	num_cpu = CONFIG_VENDOR_NR_CPUS;
 #else
@@ -444,7 +447,10 @@ int cp_mbox_set_affinity(u32 idx, int affinity)
 
 #if IS_ENABLED(CONFIG_ARGOS)
 #ifdef USE_FIXED_AFFINITY
-	return irq_set_affinity_hint(irq_data->irq, cpumask_of(affinity));
+	if (IS_ENABLED(CONFIG_IRQ_SBALANCE))
+		return 0;
+	else
+		return irq_set_affinity_hint(irq_data->irq, cpumask_of(affinity));
 #else
 	if (!zalloc_cpumask_var(&irq_data->dmask, GFP_KERNEL))
 		return -ENOMEM;
@@ -457,7 +463,10 @@ int cp_mbox_set_affinity(u32 idx, int affinity)
 	return argos_irq_affinity_setup_label(irq, "IPC", irq_data->imask, irq_data->dmask);
 #endif
 #else /* CONFIG_ARGOS */
-	return irq_set_affinity_hint(irq_data->irq, cpumask_of(affinity));
+	if (IS_ENABLED(CONFIG_IRQ_SBALANCE))
+		return 0;
+	else
+		return irq_set_affinity_hint(irq_data->irq, cpumask_of(affinity));
 #endif /* CONFIG_ARGOS */
 }
 EXPORT_SYMBOL(cp_mbox_set_affinity);

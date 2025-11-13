@@ -98,6 +98,7 @@ VDSO_CFLAGS += -D__uint128_t='void*'
 # Silence some warnings coming from headers that operate on long's
 # (on GCC 4.8 or older, there is unfortunately no way to silence this warning)
 VDSO_CFLAGS += $(call cc32-disable-warning,shift-count-overflow)
+VDSO_CFLAGS += $(call cc32-disable-warning,default-const-init-unsafe)
 VDSO_CFLAGS += -Wno-int-to-pointer-cast
 
 VDSO_AFLAGS := $(VDSO_CAFLAGS)

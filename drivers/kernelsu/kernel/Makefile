@@ -26,7 +26,7 @@ $(info -- KernelSU-Next version: $(KSU_VERSION))
 ccflags-y += -DKSU_VERSION=$(KSU_VERSION)
 else # If there is no .git file, the default version will be passed.
 $(warning "KSU_GIT_VERSION not defined! It is better to make KernelSU-Next a git submodule!")
-ccflags-y += -DKSU_VERSION=12797
+ccflags-y += -DKSU_VERSION=12851
 endif
 
 ifeq ($(shell grep -q " current_sid(void)" $(srctree)/security/selinux/include/objsec.h; echo $$?),0)
@@ -49,12 +49,20 @@ ifeq ($(shell grep "ssize_t kernel_write" $(srctree)/fs/read_write.c | grep -q "
 ccflags-y += -DKSU_KERNEL_WRITE
 endif
 
-ifndef KSU_NEXT_EXPECTED_SIZE
-KSU_NEXT_EXPECTED_SIZE := 0x3e6
+ifndef KSU_NEXT_MANAGER_SIZE
+KSU_NEXT_MANAGER_SIZE := 0x3e6
 endif
 
-ifndef KSU_NEXT_EXPECTED_HASH
-KSU_NEXT_EXPECTED_HASH := 79e590113c4c4c0c222978e413a5faa801666957b1212a328e46c00c69821bf7
+ifndef KSU_NEXT_MANAGER_HASH
+KSU_NEXT_MANAGER_HASH := 79e590113c4c4c0c222978e413a5faa801666957b1212a328e46c00c69821bf7
+endif
+
+ifndef KSU_NEXT_WILD_EXPECTED_SIZE
+KSU_NEXT_WILD_EXPECTED_SIZE := 0x39b
+endif
+
+ifndef KSU_NEXT_WILD_EXPECTED_HASH
+KSU_NEXT_WILD_EXPECTED_HASH := 593d4ce870c02468639efeef631e07ca4d852d63f154be56706229f9a5be0800
 endif
 
 ifdef KSU_MANAGER_PACKAGE
@@ -62,11 +70,15 @@ ccflags-y += -DKSU_MANAGER_PACKAGE=\"$(KSU_MANAGER_PACKAGE)\"
 $(info -- KernelSU-Next Manager package name: $(KSU_MANAGER_PACKAGE))
 endif
 
-$(info -- KernelSU-Next Manager signature size: $(KSU_NEXT_EXPECTED_SIZE))
-$(info -- KernelSU-Next Manager signature hash: $(KSU_NEXT_EXPECTED_HASH))
+$(info -- KernelSU-Next Manager signature size: $(KSU_NEXT_MANAGER_SIZE))
+$(info -- KernelSU-Next Manager signature hash: $(KSU_NEXT_MANAGER_HASH))
+$(info -- KernelSU-Next Wild Manager signature size: $(KSU_NEXT_WILD_EXPECTED_SIZE))
+$(info -- KernelSU-Next Wild Manager signature hash: $(KSU_NEXT_WILD_EXPECTED_HASH))
 
-ccflags-y += -DEXPECTED_NEXT_SIZE=$(KSU_NEXT_EXPECTED_SIZE)
-ccflags-y += -DEXPECTED_NEXT_HASH=\"$(KSU_NEXT_EXPECTED_HASH)\"
+ccflags-y += -DEXPECTED_MANAGER_SIZE=$(KSU_NEXT_MANAGER_SIZE)
+ccflags-y += -DEXPECTED_MANAGER_HASH=\"$(KSU_NEXT_MANAGER_HASH)\"
+ccflags-y += -DEXPECTED_WILD_NEXT_SIZE=$(KSU_NEXT_WILD_EXPECTED_SIZE)
+ccflags-y += -DEXPECTED_WILD_NEXT_HASH=\"$(KSU_NEXT_WILD_EXPECTED_HASH)\"
 
 ccflags-y += -DKSU_UMOUNT
 
@@ -111,6 +123,12 @@ endif
 ifneq ($(shell grep -Eq "^int path_umount" $(srctree)/fs/internal.h; echo $$?),0)
 $(shell sed -i '/^extern void __init mnt_init/a int path_umount(struct path *path, int flags);' $(srctree)/fs/internal.h;)
 $(info -- KSU_NEXT: adding 'int path_umount(struct path *path, int flags);' to $(srctree)/fs/internal.h)
+endif
+
+ifneq ($(shell grep -q "atomic_t filter_count;" $(srctree)/include/linux/seccomp.h; echo $$?),0)
+$(info -- KSU_NEXT: patching struct seccomp for filter_count)
+$(shell sed -i '/int mode;/a\	atomic_t filter_count;' $(srctree)/include/linux/seccomp.h)
+$(shell sed -i '/#include <linux\/thread_info.h>/a\#include <linux/atomic.h>' $(srctree)/include/linux/seccomp.h)
 endif
 
 ccflags-y += -Wno-implicit-function-declaration -Wno-strict-prototypes -Wno-int-conversion -Wno-gcc-compat
@@ -190,7 +208,7 @@ $(eval SUSFS_VERSION=$(shell cat $(srctree)/include/linux/susfs.h | grep -E '^#d
 $(info )
 $(info -- SUSFS_VERSION: $(SUSFS_VERSION))
 else
-$(info -- You have not integrate susfs in your kernel.)
+$(info -- You have not integrated susfs in your kernel yet.)
 $(info -- Read: https://gitlab.com/simonpunk/susfs4ksu)
 endif
 # Keep a new line here!! Because someone may append config
