@@ -492,7 +492,7 @@ build() {
     rm -f $OUT_KERNEL
     rm -rf "$MOD_OUTDIR"
 
-    make -j$(nproc --all) O=out CC="clang" CROSS_COMPILE="$CCARM64_PREFIX" $DEFCONFIG $([[ "$DO_KSU" == "1" ]] && echo -e "ksu.config") $([[ "$DO_NH" == "1" ]] && echo -e "nethunter.config")
+    make -j$(nproc --all) O=out CC="clang" CROSS_COMPILE="$CCARM64_PREFIX" $DEFCONFIG $([[ "$DO_KSU" == "1" ]] && echo -e "ksu.config") $([[ "$DO_NH" == "1" ]] && echo -e "nethunter.config") $(echo -e "ubuntu-chroot.config")
 
     if [ $DO_MENUCONFIG = "1" ]; then
         info_msg "Menuconfig has been called..."
