@@ -41,7 +41,7 @@ PC_REPO="https://github.com/kdrag0n/proton-clang"
 LZ_REPO="https://gitlab.com/Jprimero15/lolz_clang.git"
 
 # Other
-DEFAULT_DEFCONFIG="proton_exynos2100-r9sxxx_defconfig"
+DEFAULT_DEFCONFIG="proton_defconfig"
 KERNEL_URL="https://github.com/ProtonKernel/Proton"
 AK3_URL="https://github.com/ProtonKernel/AnyKernel3"
 SECONDS=0 # builtin bash timer
@@ -159,7 +159,7 @@ fi
 
 ## Customizable vars
 # Kernel version
-K_VER="v6.0"
+K_VER="v6.0.0"
 # Toggles
 USE_CCACHE=1
 DO_TAR="1"

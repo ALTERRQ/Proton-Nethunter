@@ -13874,7 +13874,7 @@
 			compatible = "arm,hera", "arm,armv8";
 			reg = <0x00 0x700>;
 			capacity-dmips-mhz = <0x3e5>;
-			dynamic-power-coefficient = <0x2f5>;
+			dynamic-power-coefficient = <0x240>;
 			enable-method = "psci";
 			cpu-idle-states = <0x108>;
 			sched-energy-data = <0x109>;
