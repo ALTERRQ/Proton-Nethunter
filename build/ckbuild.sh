@@ -157,6 +157,7 @@ if [ ! -f ".flag" ]; then
   else
       info_msg "Your distro is not Ubuntu or Debian, skipping dependencies installation..."
       info_msg "Make sure you have these dependencies installed before proceeding: $UB_DEPLIST"
+      touch ".flag"
       exit 0
   fi
 else
