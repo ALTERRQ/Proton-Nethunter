@@ -15,6 +15,34 @@ C_RST="\033[0m"
 C_BOLD="\033[1m"
 
 ## Vars
+
+# Colors
+RED="\e[1;31m"
+GREEN="\e[1;32m"
+BLUE="\e[1;34m"
+ORANGE="\e[1;33m"
+ENDCOLOR="\e[0m"
+
+# Function for consistent error messages
+error_msg() {
+    echo -e "${RED}[ERROR] $1${ENDCOLOR}" >&2
+}
+
+# Function for consistent info messages
+info_msg() {
+    echo -e "${BLUE}[INFO] $1${ENDCOLOR}"
+}
+
+# Function for consistent success messages
+success_msg() {
+    echo -e "${GREEN}[SUCCESS] $1${ENDCOLOR}"
+}
+
+# Function for consistent warning messages
+warning_msg() {
+    echo -e "${ORANGE}[WARNING] $1${ENDCOLOR}"
+}
+
 # Toolchains
 AOSP_REPO="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+/refs/heads/master"
 AOSP_ARCHIVE="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/master"
@@ -25,10 +53,29 @@ LZ_REPO="https://gitlab.com/Jprimero15/lolz_clang.git"
 DEFAULT_DEFCONFIG="proton_defconfig"
 KERNEL_URL="https://github.com/ProtonKernel/Proton"
 AK3_URL="https://github.com/ProtonKernel/AnyKernel3"
-AK3_TEST=0
 SECONDS=0 # builtin bash timer
 DATE="$(date '+%Y%m%d-%H%M')"
 BUILD_HOST="$USER@$(hostname)"
+
+upload() {
+    cd $KDIR
+    if [[ "${DO_OSHI}" = "1" ]]; then
+    info_msg "Uploading to bashupload.com\n"
+    curl -T $ZIP_PATH bashupload.com; echo -e
+    fi
+
+    if [[ "${DO_TG}" = "1" ]]; then
+            info_msg "Uploading to Telegram\n"
+            tgs $ZIP_PATH
+            success_msg ""
+    fi
+    if [[ "${UPLOAD_LOG}" = "1" ]]; then
+        info_msg "Uploading log to bashupload.com"
+        curl -T log.txt bashupload.com
+    fi
+    # Delete any leftover zip files
+    #rm -f $KDIR/build/*zip
+}
 
 # Workspace
 if [ -d /workspace ]; then
@@ -38,12 +85,14 @@ else
     IS_GP=0
 fi
 if [ -z "$WP" ]; then
-    echo -e "\n${C_RED}ERROR:${C_RST} Environment not Gitpod! Please set the WP env var...\n"
+    error_msg "Environment not Gitpod! Please set the WP env var...\n"
+    upload
     exit 1
 fi
 
 if [ ! -d drivers ]; then
-    echo -e "\n${C_RED}ERROR:${C_RST} Please exec from top-level kernel tree\n"
+    error_msg "Please exec from top-level kernel tree\n"
+    upload
     exit 1
 fi
 
@@ -94,15 +143,28 @@ DTS_OC="$KDIR/arch/arm64/boot/dts/exynos/exynos2100_oc.dts"
 
 # Dependencies
 UB_DEPLIST=" make bison libssl-dev curl lz4 brotli flex bc cpio kmod ccache zip binutils-aarch64-linux-gnu device-tree-compiler"
-if grep -q "Ubuntu" /etc/os-release; then
+if [ ! -f ".flag" ]; then
+  if grep -q -E "Ubuntu|Debian|Kali" /etc/os-release; then
     sudo apt install $UB_DEPLIST -y
+      if [ $? -ne 0 ]; then
+        error_msg "Failed to install dependencies\n"
+        upload
+        exit 1
+      else
+        touch ".flag"
+        success_msg "Succesfully installed dependencies!"
+      fi
+  else
+      info_msg "Your distro is not Ubuntu or Debian, skipping dependencies installation..."
+      info_msg "Make sure you have these dependencies installed before proceeding: $UB_DEPLIST"
+  fi
 else
-    echo -e "\n${C_CYAN}INFO:${C_RST} Your distro is not Ubuntu, skipping dependencies installation..."
-    echo -e "${C_CYAN}INFO:${C_RST} Make sure you have these dependencies installed before proceeding: $UB_DEPLIST"
+  info_msg "Dependencies should be installed"
 fi
 
 if ! command -v dtc &>/dev/null; then
-    echo -e "\n${C_RED}ERROR:${C_RST} 'dtc' (Device Tree Compiler) is not installed. Aborting...\n"
+    error_msg "'dtc' (Device Tree Compiler) is not installed. Aborting...\n"
+    upload
     exit 1
 fi
 
@@ -113,9 +175,6 @@ K_VER="v7.0-Rev"
 USE_CCACHE=1
 DO_TAR="1"
 DO_ZIP="1"
-
-# Upload build log
-BUILD_LOG=1
 
 # Pick aosp, proton or lolz
 CLANG_TYPE=aosp
@@ -128,6 +187,7 @@ CODENAME="exynos2100"
 ## Parse arguments
 # Default values
 DO_KSU=0
+DO_NH=0
 DO_CLEAN=0
 DO_MENUCONFIG=0
 IS_RELEASE=0
@@ -135,6 +195,7 @@ DO_TG=0
 DO_OSHI=0
 DO_FLTO=0
 DO_REGEN=0
+UPLOAD_LOG=0
 DEFCONFIG=$DEFAULT_DEFCONFIG
 BUILD_VARIANT="default"
 
@@ -145,40 +206,49 @@ while [[ "$1" == -* ]]; do
         FLAG="${1:$i:1}"
         case $FLAG in
             m)
-                echo -e "\n${C_CYAN}INFO:${C_RST} menuconfig argument passed, kernel configuration menu will be shown..."
+                info_msg "menuconfig argument passed, kernel configuration menu will be shown..."
                 DO_MENUCONFIG=1
                 ;;
             k)
-                echo -e "\n${C_CYAN}INFO:${C_RST} KernelSU argument passed, a KernelSU build will be made..."
+                info_msg "KernelSU argument passed, a KernelSU build will be made..."
                 DO_KSU=1
                 ;;
             c)
-                echo -e "\n${C_CYAN}INFO:${C_RST} clean argument passed, output directory will be wiped..."
+                info_msg "clean argument passed, output directory will be wiped..."
                 DO_CLEAN=1
                 ;;
             R)
-                echo -e "\n${C_CYAN}INFO:${C_RST} Release argument passed, build marked as release"
+                info_msg "Release argument passed, build marked as release"
                 IS_RELEASE=1
                 ;;
             t)
-                echo -e "\n${C_CYAN}INFO:${C_RST} Telegram argument passed, build will be uploaded to CI"
+                info_msg "Telegram argument passed, build will be uploaded to CI"
                 DO_TG=1
                 ;;
             o)
-                echo -e "\n${C_CYAN}INFO:${C_RST} bashupload.com argument passed, build will be uploaded to bashupload.com"
+                info_msg "bashupload.com argument passed, build will be uploaded to bashupload.com"
                 DO_OSHI=1
                 ;;
             l)
-                echo -e "${C_CYAN}INFO:${C_RST} Full-LTO argument passed"
-                echo -e "${C_YELLOW}WARNING:${C_RST} Full-LTO is VERY resource heavy and may take a long time to compile"
+                info_msg "Full-LTO argument passed"
+                warning_msg "Full-LTO is VERY resource heavy and may take a long time to compile"
                 DO_FLTO=1
                 ;;
             r)
-                echo -e "${C_CYAN}INFO:${C_RST} config regeneration mode"
+                info_msg "config regeneration mode"
                 DO_REGEN=1
                 ;;
+            n)
+                info_msg "Build with Nethunter support "
+                DO_NH=1
+                ;;
+            u)
+                info_msg "Log uploading is enabled "
+                UPLOAD_LOG=1
+                ;;
             *)
-                echo -e "${C_RED}ERROR:${C_RST} Unknown flag '$FLAG'"
+                error_msg "Unknown flag '$FLAG'"
+                upload
                 exit 1
                 ;;
         esac
@@ -220,8 +290,8 @@ case "$BUILD_VARIANT" in
         BUILD_TYPE_PER=1
         ;;
     *)
-        echo "Unknown build variant: $BUILD_VARIANT, defaulting to 'default'"
-        BUILD_TYPE_DEFAULT=1
+        error_msg "Unknown build variant: $BUILD_VARIANT"
+        exit 1
         ;;
 esac
 
@@ -238,7 +308,7 @@ fi
 if [[ "${IS_RELEASE}" = "1" ]]; then
     BUILD_TYPE="Release"
 else
-    echo -e "\n${C_CYAN}INFO:${C_RST} Build marked as testing"
+    info_msg "Build marked as testing"
     BUILD_TYPE="Testing"
 fi
 
@@ -246,25 +316,27 @@ fi
 LINUX_VER=$(make kernelversion 2>/dev/null)
 
 FK_TYPE=""
-if [ $DO_KSU -eq 1 ]; then
+if [ $DO_KSU -eq 1 -a $DO_NH -eq 1 ]; then
+    FK_TYPE="KSU-Nethunter"
+    
+elif [ $DO_KSU -eq 1 ]; then
     FK_TYPE="KSU"
+    
+elif [ $DO_NH -eq 1 ]; then
+    FK_TYPE="Nethunter"
+    
 else
     FK_TYPE="Non-root"
+    
 fi
-if [[ "$BUILD_TYPE_BALANCED" == "1" ]]; then
-    FK_TYPE="$BUILD_TYPE_STR-$FK_TYPE"
-elif [[ "$BUILD_TYPE_BATTERY" == "1" ]]; then
-    FK_TYPE="$BUILD_TYPE_STR-$FK_TYPE"
-elif [[ "$BUILD_TYPE_OC" == "1" ]]; then
-    FK_TYPE="$BUILD_TYPE_STR-$FK_TYPE"
-fi
+
+FK_TYPE="$BUILD_TYPE_STR-$FK_TYPE"
 
 ZIP_PATH="$KDIR/build/ProtonPlus-$K_VER-$FK_TYPE-$CODENAME-$DATE.zip"
 export ZIP_PATH="$KDIR/build/ProtonPlus-$K_VER-$FK_TYPE-$CODENAME-$DATE.zip"
 TAR_PATH="$KDIR/build/ProtonPlus-$K_VER-$FK_TYPE-$CODENAME-$DATE.tar"
 
-echo -e "\n${C_BOLD}${C_GREEN}>>> BUILD CONFIGURATION <<<${C_RST}"
-echo -e "${C_CYAN}INFO:${C_RST} Build info:
+info_msg "Build info:
 - Device: $DEVICE ($CODENAME)
 - Addons = $FK_TYPE
 - Proton version: $K_VER
@@ -286,19 +358,22 @@ get_toolchain() {
             AOSP_CLANG_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/mirror-goog-main-llvm-toolchain-source/clang-r596125.tar.gz"
             AOSP_CLANG_TARBALL="${AOSP_CLANG_VERSION}.tar.gz"
 
-            echo -e "\n${C_CYAN}INFO:${C_RST} AOSP Clang not found! Downloading specific version ($AOSP_CLANG_VERSION)..."
+            info_msg "AOSP Clang not found! Downloading specific version ($AOSP_CLANG_VERSION)..."
             
             # Download the specified version
             if ! curl -Lo "$AOSP_CLANG_TARBALL" "$AOSP_CLANG_URL"; then
-                echo -e "\n${C_RED}ERROR:${C_RST} Downloading $AOSP_CLANG_URL failed! Aborting..."
+                error_msg "Downloading $AOSP_CLANG_URL failed! Aborting..."
+                upload
                 exit 1
             fi
 
             # Extract the toolchain
             mkdir -p "$AC_DIR"
-            echo -e "\n${C_CYAN}INFO:${C_RST} Extracting toolchain..."
+
+            info_msg "Extracting toolchain..."
             if ! tar -xf "$AOSP_CLANG_TARBALL" -C "$AC_DIR"; then
-                echo -e "\n${C_RED}ERROR:${C_RST} Failed to extract $AOSP_CLANG_TARBALL! Aborting..."
+                error_msg "Failed to extract $AOSP_CLANG_TARBALL! Aborting..."
+                upload
                 exit 1
             fi
 
@@ -308,16 +383,16 @@ get_toolchain() {
             # Compatibility fixes from original script
             touch "$AC_DIR/bin/aarch64-linux-gnu-elfedit" && chmod +x "$AC_DIR/bin/aarch64-linux-gnu-elfedit"
             touch "$AC_DIR/bin/arm-linux-gnueabi-elfedit" && chmod +x "$AC_DIR/bin/arm-linux-gnueabi-elfedit"
-            # --- MODIFICATION END ---
         fi
     fi
 
     # Proton Clang
     if [[ $1 = "proton" ]]; then
         if ! [ -d "$PC_DIR" ]; then
-            echo -e "\n${C_CYAN}INFO:${C_RST} Proton Clang not found! Cloning to $PC_DIR..."
+            info_msg "Proton Clang not found! Cloning to $PC_DIR..."
             if ! git clone -q --depth=1 $PC_REPO $PC_DIR; then
-                echo -e "\n${C_RED}ERROR:${C_RST} Cloning failed! Aborting..."
+                error_msg "Cloning failed! Aborting..."
+                upload
                 exit 1
             fi
         fi
@@ -326,9 +401,10 @@ get_toolchain() {
     # Lolz Clang
     if [[ $1 = "lolz" ]]; then
         if ! [ -d "$LZ_DIR" ]; then
-            echo -e "\n${C_CYAN}INFO:${C_RST} Lolz Clang not found! Cloning to $LZ_DIR..."
+            info_msg "Lolz Clang not found! Cloning to $LZ_DIR..."
             if ! git clone -q --depth=1 $LZ_REPO $LZ_DIR; then
-                echo -e "\n${C_RED}ERROR:${C_RST} Cloning failed! Aborting..."
+                error_msg "Cloning failed! Aborting..."
+                upload
                 exit 1
             fi
         fi
@@ -339,15 +415,15 @@ prep_toolchain() {
     if [[ $1 = "aosp" ]]; then
         CLANG_DIR="$AC_DIR"
         CCARM64_PREFIX=aarch64-linux-gnu-
-        echo -e "\n${C_CYAN}INFO:${C_RST} Using AOSP Clang..."
+        info_msg "Using AOSP Clang..."
     elif [[ $1 = "proton" ]]; then
         CLANG_DIR="$PC_DIR"
         CCARM64_PREFIX=aarch64-linux-gnu-
-        echo -e "\n${C_CYAN}INFO:${C_RST} Using Proton Clang..."
+        info_msg "Using Proton Clang..."
     elif [[ $1 = "lolz" ]]; then
         CLANG_DIR="$LZ_DIR"
         CCARM64_PREFIX=aarch64-linux-gnu-
-        echo -e "\n${C_CYAN}INFO:${C_RST} Using Lolz Clang..."
+        info_msg "Using Lolz Clang..."
     fi
 
     ## Set PATH
@@ -369,10 +445,10 @@ CAPTION_BUILD="Build info:
 *Compiler*: \`${KBUILD_COMPILER_STRING}\`
 *Build host*: \`${BUILD_HOST}\`
 *Branch*: \`$(git rev-parse --abbrev-ref HEAD)\`
-*Commit*: [($(git rev-parse HEAD | cut -c -7))]($(echo $KERNEL_URL)/commit/$(git rev-parse HEAD))
+*Commit*: [($(git rev-parse HEAD | cut -c -7))]($(echo -e $KERNEL_URL)/commit/$(git rev-parse HEAD))
 *Build type*: \`$BUILD_TYPE\`
 *Build variant*: \`$BUILD_VARIANT\`
-*Clean build*: \`$( [ "$DO_CLEAN" -eq 1 ] && echo Yes || echo No )\`
+*Clean build*: \`$( [ "$DO_CLEAN" -eq 1 ] && echo -e Yes || echo -e No )\`
 "
 
 # Functions to send file(s) via Telegram's BOT api.
@@ -388,24 +464,21 @@ tgs() {
 prep_build() {
     # Prepare ccache
     if [ "$USE_CCACHE" = "1" ]; then
-        echo -e "\n${C_CYAN}INFO:${C_RST} Using ccache\n"
+        info_msg "Using ccache\n"
         if [ "$IS_GP" = "1" ]; then
             export CCACHE_DIR=$WP/.ccache
             ccache -M 10G
         else
-            echo -e "${C_CYAN}INFO:${C_RST} Environment is not Gitpod, please make sure you setup your own ccache configuration!\n"
+            info_msg "Environment is not Gitpod, please make sure you setup your own ccache configuration!\n "
         fi
     fi
 
     # Show compiler information
-    echo -e "${C_BOLD}Compiler information:${C_RST}"
-    echo -e "\n${C_CYAN}INFO:${C_RST} $KBUILD_COMPILER_STRING\n"
+    info_msg "\nCompiler information:"
+    info_msg "$KBUILD_COMPILER_STRING\n"
 }
 
 build() {
-    # Delete log.txt at the start
-    rm -f log.txt
-
     # Not that necessary anymore, but still export it just in case.
     export PLATFORM_VERSION=11
     export ANDROID_MAJOR_VERSION=r
@@ -423,19 +496,28 @@ build() {
     rm -f $OUT_KERNEL
     rm -rf "$MOD_OUTDIR"
 
-    make -j$(nproc --all) O=out CC="clang" LD="$LINKER" CROSS_COMPILE="$CCARM64_PREFIX" $DEFCONFIG $([[ "$DO_KSU" == "1" ]] && echo "ksu.config") 2>&1 | tee log.txt
+    make -j$(nproc --all) O=out CC="clang" CROSS_COMPILE="$CCARM64_PREFIX" $DEFCONFIG $([[ "$DO_KSU" == "1" ]] && echo -e "ksu.config") $([[ "$DO_NH" == "1" ]] && echo -e "nethunter.config")
 
     if [ $DO_MENUCONFIG = "1" ]; then
-        make O=out LD="$LINKER" menuconfig 2>&1 >> log.txt
+        info_msg "Menuconfig has been called..."
+        make O=out menuconfig < /dev/tty > /dev/tty 2> /dev/tty
+        if [ $? -ne 0 ]; then
+            error_msg "Menuconfig failed!"
+            upload
+            exit 1
+        else
+            info_msg "Menuconfig finished"
+        fi
     fi
 
     if [[ "$DO_REGEN" = "1" ]]; then
         if [[ "$DO_KSU" = "1" ]]; then
-            echo -e "${C_RED}ERROR:${C_RST} Can't regenerate with KSU argument"
+            error_msg "Can't regenerate with KSU argument"
+            upload
             exit 1
         fi
         cp -f out/.config arch/arm64/configs/$DEFCONFIG
-        echo -e "${C_CYAN}INFO:${C_RST} Configuration regenerated. Check the changes!"
+        info_msg "Configuration regenerated. Check the changes!"
         exit 0
     fi
 
@@ -464,40 +546,39 @@ build() {
         scripts/config --file "$KDIR/out/.config" --set-val CONFIG_SOC_EXYNOS2100_CL2_UV 0
     fi
 
-    if [ "$BUILD_TYPE_PER" == "1" ]; then
-        scripts/config --file "$KDIR/out/.config" --set-val CONFIG_SECURITY_SELINUX_ALWAYS_PERMISSIVE y
-    fi
     ## Start the build
-    echo -e "\n${C_CYAN}INFO:${C_RST} Starting compilation...\n"
+    info_msg "Starting compilation...\n"
 
-    make -j$(nproc --all) O=out CC="clang" LD="$LINKER" CROSS_COMPILE="$CCARM64_PREFIX" dtbs 2>&1 | tee -a log.txt
+    make -j$(nproc --all) O=out CC="clang" CROSS_COMPILE="$CCARM64_PREFIX" dtbs
     if [ $USE_CCACHE = "1" ]; then
-        make -j$(nproc --all) O=out CC="ccache clang" LD="$LINKER" CROSS_COMPILE="$CCARM64_PREFIX" 2>&1 | tee -a log.txt
+        make -j$(nproc --all) O=out CC="ccache clang" CROSS_COMPILE="$CCARM64_PREFIX"
     else
-        make -j$(nproc --all) O=out CC="clang" LD="$LINKER" CROSS_COMPILE="$CCARM64_PREFIX" 2>&1 | tee -a log.txt
+        make -j$(nproc --all) O=out CC="clang" CROSS_COMPILE="$CCARM64_PREFIX"
     fi
-    make -j$(nproc --all) O=out CC="clang" LD="$LINKER" CROSS_COMPILE="$CCARM64_PREFIX" INSTALL_MOD_STRIP="--strip-debug --keep-section=.ARM.attributes" INSTALL_MOD_PATH="$MOD_OUTDIR" modules_install 2>&1 | tee -a log.txt
+    make -j$(nproc --all) O=out CC="clang" CROSS_COMPILE="$CCARM64_PREFIX" INSTALL_MOD_STRIP="--strip-debug --keep-section=.ARM.attributes" INSTALL_MOD_PATH="$MOD_OUTDIR" modules_install
 }
 
 packing() {
     # Make an AnyKernel3-based zip
     if [ $DO_ZIP = 1 ]; then
         if [ -d $AK3_DIR ]; then
-            AK3_TEST=1
-            echo -e "\n${C_CYAN}INFO:${C_RST} AK3_TEST flag set because local AnyKernel3 dir was found"
+            info_msg "Local AnyKernel3 dir was found"
         else
             if ! git clone -q -b $AK3_BRANCH --depth=1 $AK3_URL $AK3_DIR; then
-                echo -e "\n${C_RED}ERROR:${C_RST} Failed to clone AnyKernel3!"
+                error_msg "Failed to clone AnyKernel3!"
+                upload
                 exit 1
             fi
+            info_msg "Cloning AnyKernel3"
         fi
-        echo -e "\n${C_CYAN}INFO:${C_RST} Building zip..."
+        info_msg "Building zip..."
         cd "$AK3_DIR"
         cp -f "$OUT_VENDORBOOTIMG" vendor_boot.img
         cp -f "$OUT_KERNEL" .
         zip -r9 -q "$ZIP_PATH" * -x .git .github README.md
         cd "$KDIR"
-        echo -e "${C_CYAN}INFO:${C_RST} Done! \n${C_CYAN}INFO:${C_RST} Output: $ZIP_PATH\n"
+        success_msg ""
+        info_msg "Output: $ZIP_PATH\n"
         if [ $AK3_TEST = 1 ]; then
             echo -e "\n${C_CYAN}INFO:${C_RST} Skipping deletion of AnyKernel3 dir because test flag is set"
         else
@@ -507,7 +588,7 @@ packing() {
 
     # Build tar
     if [ $DO_TAR = 1 ]; then
-        echo -e "\n${C_CYAN}INFO:${C_RST} Building tar..."
+        info_msg "Building tar..."
         cd "$(pwd)/build"
         rm -f "$TAR_PATH"
         lz4 -c -12 -B6 --content-size "$OUT_BOOTIMG" > boot.img.lz4 2>/dev/null
@@ -515,7 +596,8 @@ packing() {
         tar -cf "$TAR_PATH" boot.img.lz4 vendor_boot.img.lz4
         rm -f boot.img.lz4 vendor_boot.img.lz4
         cd "$KDIR"
-        echo -e "${C_CYAN}INFO:${C_RST} Done! \n${C_CYAN}INFO:${C_RST} Output: $TAR_PATH\n"
+        success_msg ""
+        success_msg "Output: $TAR_PATH\n"
     fi
 }
 
@@ -524,11 +606,10 @@ post_build() {
 
     ## Check if the kernel binaries were built.
     if [ -f "out/arch/arm64/boot/Image" ]; then
-        echo -e "\n${C_GREEN}INFO: Kernel compiled succesfully!...${C_RST}\n"
+        success_msg "Kernel compiled succesfully!...\n "
     else
-        echo -e "\n${C_RED}ERROR:${C_RST} Kernel files not found! Compilation failed?"
-        echo -e "\n${C_CYAN}INFO:${C_RST} Uploading log to bashupload.com\n"
-        curl -T log.txt bashupload.com
+        error_msg "Kernel files not found! Compilation failed?"
+        upload
         exit 1
     fi
 
@@ -554,10 +635,11 @@ post_build() {
     elif [ "$BUILD_TYPE_PER" = "1" ]; then
         DTS_SRC="$DTS_DEFAULT"
     fi
-    echo -e "\n${C_CYAN}INFO:${C_RST} Compiling DTS: $DTS_SRC -> $DTB_OUT\n"
+    info_msg "Compiling DTS: $DTS_SRC -> $DTB_OUT\n"
     dtc -I dts -O dtb -o "$DTB_OUT" "$DTS_SRC" >/dev/null 2>&1
     if [ $? -ne 0 ]; then
-        echo -e "\n${C_RED}ERROR:${C_RST} dtc failed to compile $DTS_SRC\n"
+        echo -e "$RED ERROR: dtc failed to compile $DTS_SRC\n"
+        upload
         exit 1
     fi
 
@@ -565,7 +647,8 @@ post_build() {
 
     # Handle compiled modules
     if ! find "$MOD_OUTDIR/lib/modules" -mindepth 1 -type d | read; then
-        echo -e "\n${C_RED}ERROR:${C_RST} Unknown error!\n"
+        error_msg "Unknown error!\n "
+        upload
         exit 1
     fi
 
@@ -582,28 +665,30 @@ post_build() {
     done
 
     if [ "$missing_modules" != "" ]; then
-            echo -e "${C_RED}ERROR:${C_RST} the following modules were not found: $missing_modules"
+        error_msg "the following modules were not found: $missing_modules "
+        upload
         exit 1
     fi
 
     # Check for duplicate modules in modules.load
-    if [ -f "$IN_VBOOT/lib/modules/modules.load" ]; then
-        dupes=$(sort "$IN_VBOOT/lib/modules/modules.load" | uniq -d | xargs)
-        if [ -n "$dupes" ]; then
-            echo -e "\n${C_RED}ERROR:${C_RST} Duplicate module entries found in modules.load: $dupes\n"
-            exit 1
-        fi
-    fi
+	if [ -f "$IN_VBOOT/lib/modules/modules.load" ]; then
+		dupes=$(sort "$IN_VBOOT/lib/modules/modules.load" | uniq -d | xargs)
+		if [ -n "$dupes" ]; then
+			error_msg "Duplicate module entries found in modules.load: $dupes\n"
+			upload
+			exit 1
+		fi
+	fi
 
-    # Warn for modules present but not in modules.load
-    if [ -d "$MOD_OUTDIR/lib/modules" ] && [ -f "$IN_VBOOT/lib/modules/modules.load" ]; then
-        all_built=$(find "$MOD_OUTDIR/lib/modules" -type f -name "*.ko" -exec basename {} \; | sort)
-        all_load=$(sort "$IN_VBOOT/lib/modules/modules.load")
-        not_in_load=$(comm -23 <(echo "$all_built") <(echo "$all_load") | xargs)
-        if [ -n "$not_in_load" ]; then
-            echo -e "\n${C_YELLOW}WARNING:${C_RST} The following modules exist but are NOT in modules.load: $not_in_load\n"
-        fi
-    fi
+	# Warn for modules present but not in modules.load
+	if [ -d "$MOD_OUTDIR/lib/modules" ] && [ -f "$IN_VBOOT/lib/modules/modules.load" ]; then
+		all_built=$(find "$MOD_OUTDIR/lib/modules" -type f -name "*.ko" -exec basename {} \; | sort)
+		all_load=$(sort "$IN_VBOOT/lib/modules/modules.load")
+		not_in_load=$(comm -23 <(echo -e "$all_built") <(echo -e "$all_load") | xargs)
+		if [ -n "$not_in_load" ]; then
+			warning_msg "The following modules exist but are NOT in modules.load: $not_in_load\n"
+		fi
+	fi
 
     # Prepare ramdisk
     depmod 0.0 -b "$RAMDISK_DIR"
@@ -621,19 +706,29 @@ post_build() {
     rm -rf "$MODULES_DIR/0.0"
 
     # Build the images
-    echo -e "\n${C_CYAN}INFO:${C_RST} Building dtb image..."
-    python "$MKDTBOIMG" create "$OUT_DTBIMAGE" --custom0=0x00000000 --custom1=0xff000000 --version=0 --page_size=2048 "$TMPDIR/exynos2100.dtb" || exit 1
+    info_msg "Building dtb image..."
+    python "$MKDTBOIMG" create "$OUT_DTBIMAGE" --custom0=0x00000000 --custom1=0xff000000 --version=0 --page_size=2048 "$TMPDIR/exynos2100.dtb"
+    if [ $? -ne 0 ]; then
+    error_msg "Building dtb image failed\n"
+    upload
+    exit 1
+fi
+    success_msg ""
 
-    echo -e "\n${C_CYAN}INFO:${C_RST} Building boot image..."
+    info_msg "Building boot image..."
     $MKBOOTIMG --header_version 3 \
         --kernel "$OUT_KERNEL" \
         --output "$OUT_BOOTIMG" \
         --ramdisk "$PREBUILT_RAMDISK" \
         --os_version 11.0.0 \
-        --os_patch_level "$MONTH" || exit 1
-    echo -e "${C_CYAN}INFO:${C_RST} Done!"
+        --os_patch_level "$MONTH"
+        if [ $? -ne 0 ]; then
+    upload
+    exit 1
+fi
+    success_msg ""
 
-    echo -e "\n${C_CYAN}INFO:${C_RST} Building vendor_boot image..."
+    info_msg "Building vendor_boot image..."
     cd "$RAMDISK_DIR"
     find . | cpio --quiet -o -H newc -R root:root | gzip -9 > ../ramdisk.cpio.gz
     cd ..
@@ -644,24 +739,17 @@ post_build() {
         --dtb "$OUT_DTBIMAGE" \
         --vendor_ramdisk "$(pwd)/ramdisk.cpio.gz" \
         --os_version 11.0.0 \
-        --os_patch_level "$MONTH" || exit 1
+        --os_patch_level "$MONTH"
+        if [ $? -ne 0 ]; then
+    upload
+    exit 1
+fi
 
     cd "$KDIR"
 
-    echo -e "${C_CYAN}INFO:${C_RST} Done!"
+    success_msg ""
 
     packing
-}
-
-upload() {
-    cd $KDIR
-    if [[ "${DO_TG}" = "1" ]]; then
-            echo -e "\n${C_CYAN}INFO:${C_RST} Uploading to Telegram\n"
-            tgs $ZIP_PATH
-            echo -e "${C_GREEN}Done!${C_RST}"
-    fi
-    # Delete any leftover zip files
-    #rm -f $KDIR/build/*zip
 }
 
 clean() {
@@ -670,7 +758,7 @@ clean() {
 }
 
 clean_tmp() {
-    echo -e "${C_CYAN}INFO:${C_RST} Cleaning after build..."
+    info_msg "Cleaning after build..."
     rm -rf "$TMPDIR"
     rm -rf "$MOD_OUTDIR"
     rm -f "${OUT_VENDORBOOTIMG}" "${OUT_BOOTIMG}"
@@ -685,5 +773,4 @@ prep_build
 build
 post_build
 clean_tmp
-
 upload
